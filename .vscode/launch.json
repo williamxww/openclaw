@@ -13,6 +13,7 @@
       "console": "integratedTerminal",
       "env": {
         "NODE_DISABLE_COMPILE_CACHE": "1",
+        "NODE_OPTIONS": "",
         "PATH": "${env:HOME}/.nvm/versions/node/v24.11.0/bin:${env:PATH}"
       },
       "sourceMaps": true,
