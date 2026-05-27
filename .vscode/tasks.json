@@ -1,16 +1,4 @@
 {
-    "version": "2.0.0",
-    "tasks": [
-      {
-        "label": "debug:rebuild",
-        "type": "shell",
-        "command": "pnpm clean:dist && pnpm build",
-        "options": {
-          "env": {
-            "OUTPUT_SOURCE_MAPS": "1",
-            "PATH": "${env:HOME}/.nvm/versions/node/v24.11.0/bin:${env:PATH}"
-          }
-        }
-      }
-    ]
-  }
+  "version": "2.0.0",
+  "tasks": []
+}

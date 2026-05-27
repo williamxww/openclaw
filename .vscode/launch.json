@@ -1,38 +1,26 @@
 {
-    "version": "0.2.0",
-    "configurations": [
-      {
-        "name": "Rebuild and Debug Gateway",
-        "type": "node",
-        "request": "launch",
-        "preLaunchTask": "debug:rebuild", // 自动重建再调试
-        "runtimeExecutable": "${env:HOME}/.nvm/versions/node/v24.11.0/bin/node",
-        "program": "${workspaceFolder}/openclaw.mjs",
-        "args": ["gateway", "run"],
-        "console": "integratedTerminal",
-        "env": {
-          "PATH": "${env:HOME}/.nvm/versions/node/v24.11.0/bin:${env:PATH}",
-        },
-        "sourceMaps": true,
-        "smartStep": true,
-        "outFiles": ["${workspaceFolder}/dist/**/*.js"],
-        "skipFiles": ["<node_internals>/**", "node_modules/**"],
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug src/agents",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "${env:HOME}/.nvm/versions/node/v24.11.0/bin/node",
+      "runtimeArgs": ["--import", "tsx"],
+      "program": "${workspaceFolder}/src/entry.ts",
+      "args": ["--dev", "gateway", "run"],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "env": {
+        "NODE_DISABLE_COMPILE_CACHE": "1",
+        "PATH": "${env:HOME}/.nvm/versions/node/v24.11.0/bin:${env:PATH}"
       },
-      {
-        "name": "Debug Gateway",
-        "type": "node",
-        "request": "launch",
-        "runtimeExecutable": "${env:HOME}/.nvm/versions/node/v24.11.0/bin/node",
-        "program": "${workspaceFolder}/openclaw.mjs", // 直接调试，不重建
-        "args": ["gateway", "run"],
-        "console": "integratedTerminal",
-        "env": {
-          "PATH": "${env:HOME}/.nvm/versions/node/v24.11.0/bin:${env:PATH}",
-        },
-        "sourceMaps": true,
-        "smartStep": true,
-        "outFiles": ["${workspaceFolder}/dist/**/*.js"],
-        "skipFiles": ["<node_internals>/**", "node_modules/**"],
-      },
-    ],
-  }
+      "sourceMaps": true,
+      "smartStep": true,
+      "skipFiles": [
+        "<node_internals>/**",
+        "${workspaceFolder}/node_modules/**"
+      ]
+    }
+  ]
+}

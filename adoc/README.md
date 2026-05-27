@@ -1,0 +1,162 @@
+## 常用命令
+
+```bash
+
+node openclaw.mjs onboard
+# dev profile（对应 ~/.openclaw-dev，端口 19001）：
+node openclaw.mjs --dev onboard
+
+node openclaw.mjs gateway restart
+node openclaw.mjs gateway stop
+node openclaw.mjs gateway status
+
+systemctl --user start openclaw-gateway-dev.service
+systemctl --user stop openclaw-gateway-dev.service
+```
+
+
+
+### 调试 `src/agents`
+
+VS Code 选择 `Debug src/agents`。这条配置直接执行：
+
+```bash
+node --import tsx src/entry.ts --dev gateway run
+```
+
+它不跑 `pnpm build`，不生成 `dist/**/*.map`，不触发 `debug:rebuild`，适合直接在
+`src/agents/**` 下打断点。
+
+## 踩坑
+
+### `OUTPUT_SOURCE_MAPS=1 pnpm build` 内存溢出
+
+现象：8 GB 内存机器上执行 `OUTPUT_SOURCE_MAPS=1 pnpm build`，tsdown 阶段可能在
+6 GB 左右的 V8 heap 附近 OOM，报 `Ineffective mark-compacts near heap limit`
+或被系统直接 SIGKILL。
+
+原因：tsdown 曾经在同一个 1k+ 入口图里同时生成 JS、sourcemap 和声明文件。JS 和
+sourcemap 本身可以在 8 GB 机器上完成，真正把峰值推高的是声明文件生成。
+
+修改：`tsdown.config.ts` 现在默认关闭 tsdown 的声明文件生成，只让它负责
+JS/sourcemap；公开 plugin-sdk 类型继续由后续 `build:plugin-sdk:dts` 专门生成。
+如果确实需要临时打开 tsdown 声明生成，显式设置
+`OPENCLAW_TSDOWN_DTS_BUILD=1`。
+
+### 两套 gateway：18789（默认）vs 19001（dev）
+
+同一台机器上 gateway 会落到两个端口、读两份配置，搞不清楚就会出现「webchat 一打开就
+`token_mismatch`、`/chat` 打不开」之类的怪事。
+
+
+| 启动方式                                             | 端口      | 配置文件                            | profile |
+| ------------------------------------------------ | ------- | ------------------------------- | ------- |
+| `node openclaw.mjs gateway restart` / 不带 `--dev` | `18789` | `~/.openclaw/openclaw.json`     | default |
+| VS Code `Debug src/agents`（带 `--dev`）            | `19001` | `~/.openclaw-dev/openclaw.json` | dev     |
+
+
+为什么会这样：
+
+- 默认端口 `18789` 写在 `src/gateway/server.impl.ts` 里（`port = 18789` 默认值）。
+- 一旦 CLI 解析到 `--dev`，`src/cli/profile.ts` 的 `applyCliProfileEnv` 会做两件事：
+把 `OPENCLAW_PROFILE` 设成 `dev`、把 `OPENCLAW_GATEWAY_PORT` 默认设成 `19001`。
+同时 state 目录从 `~/.openclaw` 切到 `~/.openclaw-dev`，配置文件、identity、devices
+都跟着换一套。这是为了让调试用的 gateway 不污染你日常用的那套状态。
+
+也就是说，`--dev` ≠ 「调试模式」这么简单，它实际上是**整套切换到 dev profile**：
+不同端口 + 不同配置 + 不同工作区。
+
+### dev profile 第一次跑必须先写 token
+
+现象：用 `Debug src/agents` 起 gateway 后，浏览器打开 `http://127.0.0.1:19001/chat`
+连不上，gateway 日志一直刷
+`unauthorized ... reason=token_mismatch host=127.0.0.1:19001`。
+
+原因：`~/.openclaw-dev/openclaw.json` 默认只有 `gateway.mode/bind`，**没有
+`gateway.auth.token`**。这种情况下 gateway 会走 `server.impl.ts` 里的 fallback——
+每次启动随机生成一个 runtime token，重启就换一个，配置文件里也不会落盘。而浏览器那边
+往往还揣着默认 profile（18789）的旧 token，两边对不上，必然 401。
+
+修复：给 dev profile 也固定一个 token。
+
+```bash
+# 必须用 --dev 这个 CLI flag，不能用 OPENCLAW_PROFILE=dev 这种 env
+# config set 走的是 CLI 的 profile 解析路径，env 不会切到 ~/.openclaw-dev
+node openclaw.mjs --dev config set gateway.auth.mode token
+node openclaw.mjs --dev config set gateway.auth.token <自己生成的随机串>
+
+# 生成 token 可以直接：
+node -e "console.log(require('crypto').randomBytes(24).toString('hex'))"
+```
+
+写完后 `~/.openclaw-dev/openclaw.json` 会多出 `gateway.auth.{mode,token}` 两项；
+重启 dev gateway，浏览器用这个新 token 打开 `http://127.0.0.1:19001/chat` 即可。
+
+附：如果只是想图省事不切 profile，也可以删掉 `launch.json` 里的 `--dev`，让调试 gateway
+直接复用默认 profile 的 18789 + `~/.openclaw/openclaw.json` 里那个 token。代价是调试时
+会把日常 state 一起读写，自行权衡。
+
+### 为什么开机就有两个 gateway 进程在跑（systemd user 服务）
+
+现象：`ps -ef | grep gateway` 看到两条常驻进程，端口 `18789` 和 `19001` 各一份；
+`kill` 掉之后过几秒又自动起来。
+
+原因：onboard 流程会把 gateway 注册成 **systemd user 服务**（per-user，不是 system 级
+的，所以是 `systemctl --user` 而不是 `systemctl`），unit 文件落在
+`/root/.config/systemd/user/`，由 PID 1 之下的 `systemd --user` 拉起（你刚才看到 PPID=202
+那一支就是它）。两条 unit 各对应一个 profile：
+
+
+| Unit 文件                        | 端口      | profile | state 目录          | 角色              |
+| ------------------------------ | ------- | ------- | ----------------- | --------------- |
+| `openclaw-gateway.service`     | `18789` | default | `~/.openclaw`     | 日常使用的常驻 gateway |
+| `openclaw-gateway-dev.service` | `19001` | dev     | `~/.openclaw-dev` | 调试用的常驻 gateway  |
+
+
+两份 unit 都带 `Restart=always` + `RestartSec=5`，所以**直接 `kill` 进程是没用的**——
+systemd 把它当异常退出，5 秒后自动 respawn。代码层面 `src/infra/supervisor-markers.ts`
+也通过 `OPENCLAW_SYSTEMD_UNIT` / `INVOCATION_ID` 这些环境变量识别出"我现在是被 systemd
+托管的"，从而走 supervised 分支。
+
+正确停法（按"想停多久"分档）：
+
+```bash
+# 1) 临时停一次，下次登录/开机仍会被 default.target.wants 拉起
+systemctl --user stop openclaw-gateway.service openclaw-gateway-dev.service
+
+# 2) 永久停掉 + 取消开机自启（推荐，可逆，unit 文件保留）
+systemctl --user disable --now openclaw-gateway.service openclaw-gateway-dev.service
+
+# 3) 完全卸载（连 unit 文件一起删，相当于回到没 onboard 过的状态）
+systemctl --user disable --now openclaw-gateway.service openclaw-gateway-dev.service
+rm /root/.config/systemd/user/openclaw-gateway.service \
+   /root/.config/systemd/user/openclaw-gateway-dev.service \
+   /root/.config/systemd/user/default.target.wants/openclaw-gateway*.service
+systemctl --user daemon-reload
+```
+
+业务侧入口（CLI 自己的封装，等价于 systemctl）：
+
+```bash
+node openclaw.mjs gateway stop          # 默认 profile（18789）
+node openclaw.mjs --dev gateway stop    # dev profile（19001）
+```
+
+#### 踩坑：`systemctl --user` 报 `Unit ... not loaded`
+
+现象：明明 `ps` 看得到进程，`systemctl --user stop xxx` 却说 unit 没加载。
+
+原因：`systemctl --user` 走的是 **当前 shell 的 user systemd 实例**，而它需要
+`XDG_RUNTIME_DIR` 和 `DBUS_SESSION_BUS_ADDRESS` 才能连到对的总线。某些登录方式
+（`su -`、容器里直接 exec、某些 IDE 内嵌终端）这俩环境变量是空的，结果连到一个
+空的 user systemd 实例，自然看不到 unit。
+
+修法：
+
+```bash
+export XDG_RUNTIME_DIR=/run/user/$(id -u)
+export DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/$(id -u)/bus
+systemctl --user list-units --type=service | grep openclaw
+```
+
+看到两条 `loaded active running` 就对了，再 stop / disable 即可。

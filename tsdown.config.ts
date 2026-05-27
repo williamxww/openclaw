@@ -33,7 +33,9 @@ const env = {
   NODE_ENV: "production",
 };
 const OUTPUT_SOURCE_MAPS = process.env.OUTPUT_SOURCE_MAPS === "1";
-const RUN_NODE_SKIP_DTS_BUILD = process.env.OPENCLAW_RUN_NODE_SKIP_DTS_BUILD === "1";
+const BUILD_TSDOWN_DTS =
+  process.env.OPENCLAW_TSDOWN_DTS_BUILD === "1" &&
+  process.env.OPENCLAW_RUN_NODE_SKIP_DTS_BUILD !== "1";
 
 const SUPPRESSED_EVAL_WARNING_PATHS = [
   "@protobufjs/inquire/index.js",
@@ -333,7 +335,10 @@ export default defineConfig([
     // Build core entrypoints, plugin-sdk subpaths, bundled plugin entrypoints,
     // and bundled hooks in one graph so runtime singletons are emitted once.
     clean: true,
-    dts: RUN_NODE_SKIP_DTS_BUILD ? false : undefined,
+    // The package only exposes plugin-sdk declaration paths, and build-all emits
+    // those through the dedicated tsgo step. Letting tsdown run declaration emit
+    // over this 1k+ entry graph pushes small builders past the heap limit.
+    dts: BUILD_TSDOWN_DTS ? undefined : false,
     entry: buildUnifiedDistEntries(),
     deps: {
       alwaysBundle: shouldAlwaysBundleDependency,
