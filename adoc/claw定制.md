@@ -362,15 +362,22 @@ events: [command:new, session:compact:after]
 
 ---
 
-## 11. 状态目录布局（`OPENCLAW_STATE_DIR`）
+## 11. 状态目录布局（`/root/.openclaw-dev/`）
 
-OpenClaw 默认把所有运行时状态放在 `~/.openclaw/`。当 gateway 用
-`OPENCLAW_STATE_DIR=<path>`（以及/或 `OPENCLAW_CONFIG_PATH`）启动时——比如
-本机的 systemd unit `openclaw-gateway-dev.service`，它把状态目录指到了
-`/root/.openclaw-dev/`——下面所有文件就改放到那个路径下，目录结构不变。
+本机由 systemd unit `openclaw-gateway-dev.service` 启动 gateway，
+通过环境变量把状态目录钉死在 `/root/.openclaw-dev/`：
 
 ```
-<state-dir>/
+Environment=OPENCLAW_STATE_DIR=/root/.openclaw-dev
+Environment=OPENCLAW_CONFIG_PATH=/root/.openclaw-dev/openclaw.json
+Environment=OPENCLAW_PROFILE=dev
+```
+
+OpenClaw 默认状态目录是 `~/.openclaw/`，dev profile 用 `-dev` 后缀做隔离。
+这两套目录结构完全相同，下面以 `/root/.openclaw-dev/` 为例：
+
+```
+/root/.openclaw-dev/
 ├── openclaw.json                # 主配置（gateway / agents / meta / session / tools / models / wizard）
 ├── openclaw.json.bak            # 上一次写入前的滚动备份（最近一份）
 ├── openclaw.json.bak.1..3       # 更早的滚动备份，下标越大越旧
@@ -384,7 +391,7 @@ OpenClaw 默认把所有运行时状态放在 `~/.openclaw/`。当 gateway 用
 │   ├── paired.json              # 已配对客户端（Control UI、operator 等）的 token / role / scopes
 │   └── pending.json             # 待审批的配对请求
 │
-├── agents/<agent-name>/         # 每个 agent 一个子树（如 `dev`、`main`）
+├── agents/<agent-name>/         # 每个 agent 一个子树（本机有 `dev`、`main`）
 │   ├── agent/
 │   │   ├── models.json          # 该 agent 的模型清单（provider / baseUrl / api / cost）
 │   │   └── codex-home/          # 仅 codex 风格 agent 才有，相当于该 agent 的 HOME
@@ -404,17 +411,17 @@ OpenClaw 默认把所有运行时状态放在 `~/.openclaw/`。当 gateway 用
 │       └── .usage-cost-cache.json              # 各 session 的 token / 费用计算缓存
 │
 ├── memory/
-│   └── <profile>.sqlite         # 跨 session 的长期记忆库
+│   └── dev.sqlite               # 跨 session 的长期记忆库（按 profile 命名）
 │
 ├── tasks/
 │   └── runs.sqlite (+ -wal, -shm)   # 后台任务 / 运行历史（SQLite WAL 模式）
 │
 ├── plugin-skills/               # 全是软链：把插件提供的 skill 暴露给 gateway
-│   ├── acp-router            -> <repo>/dist/extensions/acpx/skills/acp-router
-│   ├── browser-automation    -> <repo>/dist/extensions/browser/skills/browser-automation
-│   ├── qqbot-channel         -> <repo>/extensions/qqbot/skills/qqbot-channel
-│   ├── qqbot-media           -> <repo>/extensions/qqbot/skills/qqbot-media
-│   └── qqbot-remind          -> <repo>/extensions/qqbot/skills/qqbot-remind
+│   ├── acp-router            -> /data/server/oschina/openclaw/dist/extensions/acpx/skills/acp-router
+│   ├── browser-automation    -> /data/server/oschina/openclaw/dist/extensions/browser/skills/browser-automation
+│   ├── qqbot-channel         -> /data/server/oschina/openclaw/extensions/qqbot/skills/qqbot-channel
+│   ├── qqbot-media           -> /data/server/oschina/openclaw/extensions/qqbot/skills/qqbot-media
+│   └── qqbot-remind          -> /data/server/oschina/openclaw/extensions/qqbot/skills/qqbot-remind
 │
 ├── logs/
 │   ├── config-audit.jsonl       # 每次写 `openclaw.json` 的审计行（pid / argv / 前后 hash）
