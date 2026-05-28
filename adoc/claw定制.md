@@ -15,6 +15,9 @@
 | 文件驱动 | workspace 目录里的 markdown / skill 目录 / hooks 目录 |
 | 插件驱动 | 自定义工具走独立 npm 包形态的插件，`openclaw plugins install` |
 | 可升级 | 整个 `my-claw/` 仓库自治，OpenClaw 升版本不影响 |
+| 不依赖向导 | 不跑 `openclaw onboard` / `openclaw setup` / `openclaw configure`，所有产物（配置 / workspace / auth-profiles / 插件）首启前**手动**就位 |
+| 严格校验 | gateway 启动会用 schema 校验 `openclaw.json`，未知字段或类型错都会拒启动；首启前先 `openclaw config schema` 对照、出错用 `openclaw doctor` 排查 |
+| 先定义后启动 | gateway 第一次起来之前必须备好：配置 + workspace md + 模型 auth + 已装插件；gateway 只是把这堆产物加载起来 |
 
 ---
 
@@ -60,8 +63,8 @@ D:/my-claw/
     defaults: {
       workspace: "D:/my-claw/workspace",
       model: "anthropic/claude-sonnet-4-6",
-      // 关闭 bootstrap 自动生成（自带模板已就位）
-      skipBootstrap: false,
+      // workspace 已手写好 5 个 md，禁止 gateway 首启自动播种模板
+      skipBootstrap: true,
       bootstrapMaxChars: 12000,
       bootstrapTotalMaxChars: 60000,
     },
@@ -296,21 +299,119 @@ events: [command:new, session:compact:after]
 
 ---
 
-## 7. 落地步骤
+## 7. 落地步骤（不用向导，先定义后启动）
 
-1. `mkdir D:/my-claw && cd D:/my-claw`
-2. `openclaw setup --workspace D:/my-claw/workspace`（生成 6 个模板文件）
-3. 编辑 `workspace/AGENTS.md` `SOUL.md` `IDENTITY.md` `USER.md` 定义角色与系统提示
-4. 在 `~/.openclaw/openclaw.json` 写 `agents.defaults` + `agents.list`，指向 workspace
-5. 自定义 skill 丢到 `workspace/skills/` 或 `D:/my-claw/skills/` + 配 `skills.load.extraDirs`
-6. 自定义工具：`plugins/my-tools/` 写好后 `openclaw plugins install file:./plugins/my-tools`
-7. 工作流：standing orders 写 `AGENTS.md`；定时 `openclaw cron add`；事件放 `hooks/` 目录
-8. `openclaw gateway restart` → 浏览器开 `http://127.0.0.1:18789/chat` 验证
-9. `D:/my-claw/` 整个用私有 git 仓库备份（`.gitignore` 排掉 token / API key）
+> 顺序原则：**所有产物在 gateway 第一次启动之前手动到位**。gateway 启动只是把它们加载起来——schema 校验不通过会直接拒启动。
+
+### 阶段 A：首启**之前**，纯文件操作（gateway 不要起）
+
+1. **建仓库骨架**
+   ```bash
+   mkdir -p D:/my-claw/{workspace,workspace/skills,skills,plugins,hooks,workflows}
+   cd D:/my-claw && git init
+   ```
+   `.gitignore` 至少排掉：`*.token`、`*.key`、`auth-profiles*.json`、`.env*`。
+
+2. **手写 workspace 的 5 个 md**（别跑 `openclaw setup`，那是简化向导）
+   在 `D:/my-claw/workspace/` 下逐个新建：
+   - `AGENTS.md` — 操作指令、任务规则、记忆使用方式
+   - `SOUL.md` — 人格、语气、边界
+   - `IDENTITY.md` — agent 名字 / emoji / 自我形象
+   - `USER.md` — 用户身份与称呼
+   - `TOOLS.md` — 工具使用约定（仅说明）
+   不要建 `BOOTSTRAP.md`——只要任一其他 bootstrap 文件存在，OpenClaw 就不会再生成它。
+
+3. **手写 `~/.openclaw/openclaw.json`**
+   按 §2 / §4 / §5 拼出 `agents.defaults` + `agents.list[]` + `skills.load.extraDirs` + `tools.allow` + 必要的 `hooks` / `plugins.entries`。
+   关键开关：`agents.defaults.skipBootstrap: true`，禁止首启自动播种模板，确保你的手写 md 不会被覆盖也不会被 ritual 注入额外指令。
+   写完先 dry-check：
+   ```bash
+   openclaw config schema > /tmp/schema.json   # 拉 schema 对照
+   openclaw doctor                              # 离线静态检查
+   ```
+
+4. **手写模型 auth**（不依赖 `onboard` / `channels login`）
+   每个 agent 对应一份：
+   ```
+   ~/.openclaw/agents/<agentId>/agent/auth-profiles.json
+   ```
+   只放 `api_key` / `token` 这种**可移植的静态凭据**就行，OAuth 走环境变量或 secret ref。
+   敏感值优先用 secret ref（`env:` / `file:` / `exec:`），别裸写到 JSON。
+
+5. **装自定义插件**（gateway 不在跑也能装；插件磁盘就位 = 首启时被注册）
+   ```bash
+   openclaw plugins install file:D:/my-claw/plugins/my-tools
+   ```
+   再在 `openclaw.json` 里：`tools.allow: ["my_run"]`（如果是 optional 工具）。
+
+### 阶段 B：第一次启动 gateway
+
+6. **首次启动**（不是 restart——此前没东西可重启）
+   ```bash
+   openclaw gateway start
+   ```
+   起来后立刻验证：
+   ```bash
+   openclaw gateway status
+   openclaw health
+   ```
+   起不来：`openclaw doctor` 看 schema / 路径 / 权限错；不要用 `--fix` 直接覆盖你的手写配置，先看清差异。
+
+7. **进 UI 跑一句通路**
+   浏览器打开 `http://127.0.0.1:18789/chat`，发一条话验证模型可达、bootstrap md 已被注入到 system prompt。
+
+### 阶段 C：起来**之后**才做的事（多数热改，无需重启）
+
+8. **调 skills / 改 workspace md / 加 cron**——全是热改：
+   - skills：开 `skills.load.watch: true`，编辑保存即重载
+   - workspace md：开新 session 即生效（同一 session 不重读）
+   - cron：`openclaw cron add ...` 直接落 `~/.openclaw/cron.json`
+
+9. **加 / 换插件，新增 agent，加 hooks**——这些要 `openclaw gateway restart`（详见 §8.2）。
+
+10. **整仓库走私有 git 备份**：`D:/my-claw/` 自治，`~/.openclaw/openclaw.json` 用软链或部署脚本同步过去。auth-profiles / token 留在 `~/.openclaw/`，**不**进这个仓库。
 
 ---
 
-## 8. 定制能力速查
+## 8. 热改 vs 必须 restart
+
+写好之后改东西时，先按这张表判断要不要 `openclaw gateway restart`，避免无谓重启或漏改没生效。
+
+### 8.1 热改即生效（不用动 gateway）
+
+| 改动 | 触发时机 | 备注 |
+| --- | --- | --- |
+| `workspace/*.md`（AGENTS / SOUL / IDENTITY / USER / TOOLS） | **新开 session** 时注入 | 同一 session 不会重读；要立即看效果就开新 session |
+| `workspace/skills/**` 或 `extraDirs` 下的 skill | 文件变更即时重载 | 需 `skills.load.watch: true`；改 frontmatter 也算 |
+| `~/.openclaw/openclaw.json` 大多数字段 | gateway 监听该文件，**热 reload** | schema 校验失败 → 跳过 reload，保留旧配置不崩；`doctor` 排查 |
+| `openclaw cron add/rm/ls` | 直接落 `~/.openclaw/cron.json` | 调度器实时拾取 |
+| Standing orders（写在 `AGENTS.md`） | 同 workspace md 规则 | 新 session 生效 |
+| `tools.allow` 增减已注册工具 | 配置 reload 后下次工具列举生效 | 注意：只能开关**已注册**的工具；新工具属于装插件 |
+| `skills.entries.<name>.enabled` / `env` | 配置 reload 即时生效 | 切 skill 白名单不需要重启 |
+
+### 8.2 必须 `openclaw gateway restart`
+
+| 改动 | 原因 |
+| --- | --- |
+| 装 / 卸 / 升级 / 改名插件 | `registerTool` / `contracts` / RPC 端点在 plugin load 阶段才跑 |
+| `agents.list[]` 新增 / 删除 agent | 要新建 `agentDir` / session store / auth-profiles 路径并完成路由绑定 |
+| 新增 hook（`hooks.extraDirs` 加目录、`hooks.entries.<x>.enabled` 由 false 转 true） | hook 注册表只在启动时扫一次；既有 hook 的 handler 代码改动同样要重启 |
+| 改 gateway 监听端口 / `controlUi.root` / 其它 boot-time 字段 | 这些在 socket bind / 静态资源挂载时一次性读 |
+| 切 `OPENCLAW_STATE_DIR` / `OPENCLAW_CONFIG_PATH` / `OPENCLAW_PROFILE` | 状态目录是进程级常量 |
+| 改 `memory.backend`（如 qmd ↔ lancedb） | 后端连接在启动时建立 |
+| device key / identity 改动 | gateway 启动时一次性加载 Ed25519 keypair |
+
+### 8.3 介于两者之间
+
+- **`agents.list[].model` 改模型**：下一次 agent run 自动用新模型，不需要 restart；但若同时切了 provider 而 auth-profiles 还没就位，会运行时报错——把 auth 准备好再改更稳。
+- **`auth-profiles.json` 改 token / key**：多数路径会重读文件，但部分长连 provider 缓存 client 实例；最稳是 restart。
+- **改插件源码（已装的本地插件）**：dev 模式下 `pnpm gateway:watch` 自动重载；生产用 `gateway restart`。
+
+经验法则：**只动数据**（md / json 的字段值 / cron 条目）多半热改；**改结构**（加 agent、加 hook、加插件、改端口）一律 restart。
+
+---
+
+## 9. 定制能力速查
 
 | 想做的事 | 不改源码的做法 |
 | --- | --- |
@@ -329,7 +430,7 @@ events: [command:new, session:compact:after]
 
 ---
 
-## 9. 不要碰源码的边界
+## 10. 不要碰源码的边界
 
 唯一可能想动源码但其实不必动的场景：改 Pi runtime 或 auto-reply 管线行为。这部分用 hooks 足够覆盖：
 
@@ -343,7 +444,7 @@ events: [command:new, session:compact:after]
 
 ---
 
-## 10. 参考文档（项目内）
+## 11. 参考文档（项目内）
 
 | 主题 | 路径 |
 | --- | --- |
@@ -362,7 +463,7 @@ events: [command:new, session:compact:after]
 
 ---
 
-## 11. 状态目录布局（`/root/.openclaw-dev/`）
+## 12. 状态目录布局（`/root/.openclaw-dev/`）
 
 本机由 systemd unit `openclaw-gateway-dev.service` 启动 gateway，
 通过环境变量把状态目录钉死在 `/root/.openclaw-dev/`：
