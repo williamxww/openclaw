@@ -359,3 +359,80 @@ events: [command:new, session:compact:after]
 | 事件 hooks | `docs/automation/hooks.md` |
 | Task flow | `docs/automation/taskflow.md` |
 | 内部源码导览（debug 用） | `adoc/架构设计文档.md` |
+
+---
+
+## 11. 状态目录布局（`OPENCLAW_STATE_DIR`）
+
+OpenClaw 默认把所有运行时状态放在 `~/.openclaw/`。当 gateway 用
+`OPENCLAW_STATE_DIR=<path>`（以及/或 `OPENCLAW_CONFIG_PATH`）启动时——比如
+本机的 systemd unit `openclaw-gateway-dev.service`，它把状态目录指到了
+`/root/.openclaw-dev/`——下面所有文件就改放到那个路径下，目录结构不变。
+
+```
+<state-dir>/
+├── openclaw.json                # 主配置（gateway / agents / meta / session / tools / models / wizard）
+├── openclaw.json.bak            # 上一次写入前的滚动备份（最近一份）
+├── openclaw.json.bak.1..3       # 更早的滚动备份，下标越大越旧
+├── openclaw.json.last-good      # 健康监视器认证过的"最后一份好配置"
+├── update-check.json            # 上次 `openclaw update` 检查的时间戳
+│
+├── identity/
+│   └── device.json              # 本 gateway 的 Ed25519 deviceId + 公私钥（用于签名 / 自我标识）
+│
+├── devices/
+│   ├── paired.json              # 已配对客户端（Control UI、operator 等）的 token / role / scopes
+│   └── pending.json             # 待审批的配对请求
+│
+├── agents/<agent-name>/         # 每个 agent 一个子树（如 `dev`、`main`）
+│   ├── agent/
+│   │   ├── models.json          # 该 agent 的模型清单（provider / baseUrl / api / cost）
+│   │   └── codex-home/          # 仅 codex 风格 agent 才有，相当于该 agent 的 HOME
+│   │       ├── installation_id          # codex 安装 ID
+│   │       ├── .personality_migration   # 老版 personality 数据的迁移标记
+│   │       ├── state_5.sqlite (+ -wal, -shm)  # codex 主状态库（SQLite WAL 模式）
+│   │       ├── logs_2.sqlite                  # codex 日志库
+│   │       ├── memories/                       # codex 长期记忆条目
+│   │       ├── skills/                         # codex skill 定义
+│   │       └── tmp/                            # 临时文件（如 `arg0`）
+│   └── sessions/
+│       ├── <uuid>.jsonl                        # 对话回合记录（用户可见层）
+│       ├── <uuid>.trajectory.jsonl             # 完整 trace（含工具调用、思考），用于回放/调试
+│       ├── <uuid>.trajectory-path.json         # 指向 trajectory 文件的小指针
+│       ├── <uuid>.jsonl.reset.<ts>.jsonl       # session 被 reset 时的归档
+│       ├── sessions.json                       # 该 agent 的 session 索引
+│       └── .usage-cost-cache.json              # 各 session 的 token / 费用计算缓存
+│
+├── memory/
+│   └── <profile>.sqlite         # 跨 session 的长期记忆库
+│
+├── tasks/
+│   └── runs.sqlite (+ -wal, -shm)   # 后台任务 / 运行历史（SQLite WAL 模式）
+│
+├── plugin-skills/               # 全是软链：把插件提供的 skill 暴露给 gateway
+│   ├── acp-router            -> <repo>/dist/extensions/acpx/skills/acp-router
+│   ├── browser-automation    -> <repo>/dist/extensions/browser/skills/browser-automation
+│   ├── qqbot-channel         -> <repo>/extensions/qqbot/skills/qqbot-channel
+│   ├── qqbot-media           -> <repo>/extensions/qqbot/skills/qqbot-media
+│   └── qqbot-remind          -> <repo>/extensions/qqbot/skills/qqbot-remind
+│
+├── logs/
+│   ├── config-audit.jsonl       # 每次写 `openclaw.json` 的审计行（pid / argv / 前后 hash）
+│   └── config-health.json       # 健康监视器对每个 config 文件的视图（last-known-good 等）
+│
+└── tui/
+    └── last-session.json        # TUI 客户端上次连到的 sessionKey，下次启动用来 resume
+```
+
+要点：
+
+- `*.sqlite` 都是 SQLite WAL 模式的库，旁边的 `-wal` 和 `-shm` 不能单独删——
+  单独删任意一个都会损坏数据库。
+- `plugin-skills/` 里全是软链，源在仓库的 `extensions/*` 或者构建产物
+  `dist/extensions/*`。改 skill 直接改源文件即可，重启 gateway 生效，不用拷贝。
+- `openclaw.json.bak[.N]` 是机械的滚动备份（每次写都会推一格），
+  `openclaw.json.last-good` 则要等健康监视器验证通过才会被提升。恢复时优先用
+  后者，更安全。
+- `agents/` 下面的子目录名是 **agent 名**（如 `dev`、`main`），不是 gateway
+  profile。gateway profile 由 `OPENCLAW_PROFILE` 决定，它影响的是挂哪个 state
+  目录，不是这里的子目录命名。
