@@ -632,4 +632,410 @@ Task Flow（自动）
 
 ---
 
+## 六、业务场景示例：OPC 公司申请
+
+以 **OPC（运营主体资质）公司申请** 为例，说明业务流、OPT 划分和专家 agent 组成。
+
+---
+
+### 6.1 业务流程全景
+
+```
+事前辅导
+  1. 政策咨询与匹配          ← 企业文员发起，办事员 OPT 响应
+  2. 指导企业准备材料         ← 办事员 OPT 输出材料清单
+
+事中核验
+  3. 材料接收与审查           ← 企业提交材料，办事员 OPT 预审
+  4. 工单分派与启动联审        ← 预审通过后，联合审查 OPT 接管
+
+事中协同
+  5. 跟踪联审进度与协调        ← 联合审查 OPT 辅助真实员工
+  6. 汇总结果并反馈            ← 员工决策后，联合审查 OPT 上报结论
+
+事后闭环
+  7. 公示管理与异议处理        ← 归档 OPT 接管
+  8. 办结归档与服务闭环        ← 归档 OPT 完成并关闭申请
+```
+
+---
+
+### 6.2 OPT 划分
+
+整个业务流由三个 OPT 协同完成，每个 OPT 只负责自己的节点段，**通过本体状态交接，互不感知对方内部细节**。
+
+| OPT | 负责节点 | 触发方式 | 交接动作 |
+|-----|---------|---------|---------|
+| **办事员 OPT** | 节点 1–3 | 企业文员发起咨询，或新建申请单 | 预审通过 → 将 Application 状态置为 `under_review`，创建 ReviewTask |
+| **联合审查 OPT** | 节点 4–6 | 检测到 `ReviewTask(status=pending)` | 员工决策后 → 将 Application 状态置为 `approved` / `rejected` |
+| **归档 OPT** | 节点 7–8 | 检测到 `Application(status=approved)` | 公示完成 → 将 Application 状态置为 `closed` |
+
+---
+
+### 6.3 各 OPT 专家 Agent 组成
+
+#### 办事员 OPT
+
+面向企业文员，以网络数字员工形式对外服务。
+
+```
+办事员 OPT
+├── 办事主任（Orchestrator）
+│     职责：驱动本 OPT 内流程推进，决定何时完成预审并交接
+│           接收企业消息，路由给对应专家，汇总结论回复企业
+│
+├── 政策专家
+│     职责：调用知识库 SKILL（kb-opc-policy）检索适用政策
+│           输出政策摘要 + 来源条款，供企业参考
+│
+└── 材料审查专家
+      职责：对照本体 SKILL（ontology-opc-application）生成材料清单
+            逐项核验企业提交材料是否齐全、格式是否合规
+            输出"通过 / 缺失清单 / 格式问题"结论
+```
+
+#### 联合审查 OPT
+
+面向真实审查员工，以辅助决策形式工作。**不代替员工做通过/驳回决定。**
+
+```
+联合审查 OPT
+├── 审查编排师（Orchestrator）
+│     职责：接收 ReviewTask 待办，分配给专家，汇总报告
+│           推送"审查摘要 + 风险清单"给真实员工，等待决策
+│           收到员工结果后更新本体状态并触发后续
+│
+├── 材料审查专家
+│     职责：深度合规审查（超出预审的实质性审查）
+│           检查材料真实性、内容一致性、证照有效期
+│           输出合规问题列表，按高/中/低风险分级
+│
+├── 财务专家
+│     职责：核查企业财务数据、税务合规状态、资金来源合法性
+│           识别财务造假嫌疑、异常关联交易等高风险信号
+│           输出财务风险报告
+│
+└── 风险侦察专家
+      职责：综合材料审查 + 财务审查结果，挖掘隐藏关联风险
+            如：股权穿透、历史处罚记录、关联企业异常
+            为员工决策提供"看不见的风险"清单
+```
+
+#### 归档 OPT
+
+面向行政人员，执行公示和归档流程。
+
+```
+归档 OPT
+├── 归档编排师（Orchestrator）
+│     职责：检测 Application(status=approved)，启动公示和归档流程
+│           跟踪公示期，处理异议，最终关闭申请
+│
+├── 公示管理专家
+│     职责：生成公示内容，发布到指定渠道（官网/公告板）
+│           监听公示期内的异议反馈，分类处理或升级
+│
+└── 流程归档专家
+      职责：整理申请全周期材料，生成归档包
+            写入档案系统，更新 Application 状态为 closed
+            发出服务闭环通知给企业
+```
+
+---
+
+### 6.4 跨 OPT 状态流转
+
+```
+企业文员
+  │ 发起咨询
+  ▼
+办事员 OPT（节点 1-3）
+  │ 预审通过
+  │ → Application.status = under_review
+  │ → 创建 ReviewTask(type=joint_review, status=pending)
+  ▼
+联合审查 OPT（节点 4-6）         ← 真实员工介入决策
+  │ 员工通过
+  │ → Application.status = approved
+  ▼
+归档 OPT（节点 7-8）
+  │ 归档完成
+  │ → Application.status = closed
+  ▼
+  企业收到办结通知
+```
+
+> 每个 OPT 写完状态即止，不持有"下一步是谁"的知识。后续由哪个 OPT 接手，由外部系统（本体状态 + 事件触发）驱动。
+
+---
+
+## 七、设计器组件装配
+
+设计器内的三类公共组件（知识库、业务本体、SKILL）以及业务流程图，均需转换为 agent 可读的文件形式才能生效。
+
+---
+
+### 7.1 知识库 → SKILL 自动生成
+
+设计器为每个已挂载的知识库自动生成一个 SKILL.md，告诉 agent **何时查询、如何查询、输出是什么**。
+
+生成的 SKILL 放入 `~/.openclaw/skills/<kb-skill-name>/` 供全部 agent 共享，或放入 `<workspace>/skills/` 只给该 agent 使用。
+
+**自动生成的知识库 SKILL 示例：**
+
+```markdown
+---
+name: kb-opc-policy
+description: 查询 OPC 公司申请相关政策知识库
+version: "1.0"
+tools:
+  - kb-query
+---
+
+# 知识库：OPC 政策知识库
+
+## 何时使用
+- 企业咨询申请资质条件、所需材料、办理时限时
+- 需要引用具体政策条文或文件依据时
+- 审查材料是否符合政策要求前，先查询对应标准
+
+## 查询方式
+
+\`\`\`bash
+# 语义检索（推荐，适合自然语言问题）
+kb-query search --kb opc-policy --q "注册资本要求" --top 5
+
+# 精确文档检索
+kb-query get --kb opc-policy --doc "企业资质认定办法2024"
+\`\`\`
+
+## 输出格式
+\`\`\`json
+{
+  "results": [
+    {
+      "docId": "...",
+      "title": "...",
+      "excerpt": "...",
+      "source": "文件名 第X条",
+      "score": 0.92
+    }
+  ]
+}
+\`\`\`
+
+## 注意事项
+- 检索结果为参考依据，不是最终结论，需结合具体案例判断
+- score < 0.7 的结果不得直接引用，须人工确认
+- 政策有时效性，文档日期超过 1 年需提示用户核实
+```
+
+---
+
+### 7.2 业务本体 → SKILL 自动生成
+
+业务本体描述了业务域的实体、关系和字段结构（如"企业""申请单""审批节点"之间的关联）。设计器为每个本体自动生成 SKILL，告诉 agent **实体结构是什么、如何查询本体数据库**。
+
+**自动生成的本体 SKILL 示例：**
+
+```markdown
+---
+name: ontology-opc-application
+description: OPC 申请业务本体，描述核心实体与查询方式
+version: "1.0"
+tools:
+  - ontology-query
+---
+
+# 业务本体：OPC 公司申请
+
+## 核心实体
+
+| 实体 | 字段（关键） | 说明 |
+|------|------------|------|
+| Enterprise | id, name, creditCode, registeredCapital, establishDate | 申请企业 |
+| Application | id, enterpriseId, status, submittedAt, materials[] | 申请单 |
+| ReviewTask | id, applicationId, assignee, type, status, result | 审查任务 |
+| Material | id, applicationId, type, fileUrl, checkResult | 提交材料 |
+| Policy | id, version, effectiveDate, content | 适用政策 |
+
+## 实体关系
+```
+Enterprise ──(1:N)──> Application
+Application ──(1:N)──> ReviewTask
+Application ──(1:N)──> Material
+Application ──(N:1)──> Policy
+```
+
+## 查询方式
+
+\`\`\`bash
+# 查询实体（支持过滤）
+ontology-query get --entity Application --filter "status=under_review" --json
+
+# 查询关联实体
+ontology-query related --entity Application --id APP-2024-001 --rel ReviewTask --json
+
+# 更新实体状态（需 Approval gate）
+ontology-query update --entity Application --id APP-2024-001 --set "status=approved" --json
+\`\`\`
+
+## 注意事项
+- 所有写操作（update/delete）必须经过 Approval gate，不得直接执行
+- 查询结果中 `status` 枚举值：`draft` / `submitted` / `under_review` / `approved` / `rejected`
+- `creditCode` 是企业唯一标识，跨系统查询以此为准
+```
+
+---
+
+### 7.3 业务流程图 → Agent 流程约束
+
+设计器内的流程图（如 OPC 申请的 8 个节点）需转换为两层文件：
+
+1. **Lobster 工作流**（`.lobster`）：定义每个节点的执行逻辑、数据传递、暂停点
+2. **各 OPT 的 AGENTS.md Standing Orders**：告诉每个 OPT 负责哪些节点、触发条件和交接规则
+
+#### 流程图 → 两层映射关系
+
+```
+设计器流程图（OPC 申请，8个节点）
+        │
+        ├── 办事员 OPT 负责节点 1-2（事前辅导）
+        │     └── AGENTS.md Standing Orders：触发条件、交接给联合审查的条件
+        │     └── workflows/opc-pre-consult.lobster：节点 1-2 的具体执行步骤
+        │
+        ├── 联合审查 OPT 负责节点 3-6（事中核验+协同）
+        │     └── AGENTS.md Standing Orders：收到待办后启动、结果上报
+        │     └── workflows/opc-joint-review.lobster：节点 3-6 的具体执行步骤
+        │
+        └── 归档 OPT 负责节点 7-8（事后闭环）
+              └── AGENTS.md Standing Orders：收到通过结果后启动
+              └── workflows/opc-archive.lobster：公示+归档执行步骤
+```
+
+#### 办事员 OPT 的 AGENTS.md Standing Orders 示例
+
+```markdown
+## Program: OPC 公司申请 — 事前辅导
+
+**Authority:** 政策咨询、材料预审（不涉及写数据库）
+**Trigger:** 企业文员发起咨询，或新 Application 创建事件（status=draft）
+**Approval gate:** 预审通过后，向企业文员确认"已准备完整"再推进
+**Escalation:** 遇到本体内无对应政策条文，停止并升级政策专家人工处理
+
+### 执行步骤（严格按序）
+
+1. **政策匹配** — 调用 `kb-opc-policy` SKILL，检索适用政策，输出政策摘要给企业
+2. **材料清单生成** — 查询 `ontology-opc-application` 获取该类型申请所需材料列表
+3. **材料预审** — 企业提交材料后，逐项核验是否齐全、格式是否合规
+4. **预审结论** — 齐全则触发 Lobster 工作流 `workflows/opc-pre-consult.lobster` 中的交接步骤
+   - 不通过：列出缺失清单，返回步骤 3，最多 3 轮
+   - 通过：创建联合审查待办，将 Application 状态更新为 `under_review`
+
+### 执行纪律
+- 不得跳过材料预审直接推进联合审查
+- 政策引用必须附带来源（文件名 + 条款）
+- 所有与企业的沟通记录写入 `memory/YYYY-MM-DD.md`
+```
+
+#### 联合审查 OPT 的 AGENTS.md Standing Orders 示例
+
+```markdown
+## Program: OPC 公司申请 — 联合审查
+
+**Authority:** 辅助真实员工审查，不得代替员工做通过/驳回决定
+**Trigger:** ReviewTask 待办推送（type=joint_review, status=pending）
+**Approval gate:** 每次审查结论必须由真实员工确认（approve / reject）
+**Escalation:** 发现高风险项（财务造假嫌疑、证件疑似伪造）立即停止，标记并上报
+
+### 执行步骤（严格按序）
+
+1. **加载上下文** — 查询 Application + Material + Enterprise 完整信息
+2. **财务合规核查** — 调用财务专家子 agent，输出财务风险报告
+3. **材料深度审查** — 调用材料审查专家子 agent，输出合规问题列表
+4. **风险汇总** — 合并两份报告，生成"审查摘要 + 风险清单"
+5. **等待员工决策** — 推送摘要给对应真实员工，暂停等待 approve/reject
+6. **执行决策** — 按员工决定更新 Application 状态，触发后续流程
+
+### 执行纪律
+- 步骤 5 必须暂停等待，不得自动决策通过
+- 风险清单按严重程度排序（高/中/低），高风险项必须显式标注
+```
+
+#### Lobster 工作流示例（节点 3-4，材料接收与联审启动）
+
+```yaml
+# workspace/workflows/opc-joint-review.lobster
+name: opc-joint-review
+steps:
+
+  # 节点 3：材料接收与审查
+  - id: load_application
+    command: ontology-query get --entity Application --filter "status=under_review" --json
+
+  - id: financial_check
+    command: agent-invoke --agent finance-expert --task "财务合规核查"
+    stdin: $load_application.stdout
+
+  - id: material_check
+    command: agent-invoke --agent material-expert --task "材料合规审查"
+    stdin: $load_application.stdout
+
+  # 节点 4：工单分派与联审等待
+  - id: summarize_risks
+    command: risk-summarizer --json
+    stdin: |
+      $financial_check.stdout
+      $material_check.stdout
+
+  - id: await_employee_decision
+    command: notify-employee --channel dingtalk --template joint-review-summary
+    stdin: $summarize_risks.stdout
+    approval: required          # 暂停，等待真实员工 approve/reject
+
+  - id: update_status
+    command: ontology-query update --entity Application --set "status=$await_employee_decision.result" --json
+    condition: $await_employee_decision.completed
+```
+
+---
+
+### 7.4 设计器生成物 → workspace 文件对应关系
+
+| 设计器组件 | 生成物 | 放置位置 | agent 使用方式 |
+|-----------|--------|---------|--------------|
+| 知识库 | `kb-<name>/SKILL.md` | `~/.openclaw/skills/` 或 `<workspace>/skills/` | AGENTS.md 中 Standing Orders 引用；直接调用 `kb-query` |
+| 业务本体 | `ontology-<name>/SKILL.md` | 同上 | 查询实体状态、更新实体、理解业务结构 |
+| 流程图（本 OPT 负责节点） | `workflows/<flow>.lobster` | `<workspace>/workflows/` | AGENTS.md 中指定 Lobster 工作流文件路径 |
+| 流程图（交接条件） | 注入到 AGENTS.md Standing Orders | `<workspace>/AGENTS.md` | 直接读取，agent 按条件决定何时交接 |
+| 通知渠道 | MCP server 或 `openclaw.message` | `openclaw.json` mcp.servers | 工作流 notify 步骤直接调用 |
+
+> **核心原则：** 设计器负责生成文件，agent 负责读文件并执行。agent 不需要知道设计器的内部结构，只需要知道自己的 workspace 里有哪些 SKILL、workflows 和 AGENTS.md 规则。
+
+---
+
+### 7.5 多 OPT 流转的关键约定
+
+跨 OPT 流转依赖**本体状态**作为全局同步点，不依赖直接 agent-to-agent 调用：
+
+```
+办事员 OPT
+  └─ 预审通过后：ontology-query update Application status=under_review
+                 + 创建 ReviewTask(type=joint_review, status=pending)
+
+联合审查 OPT
+  └─ Heartbeat 或事件触发：检测到 ReviewTask(status=pending) → 启动工作流
+
+归档 OPT
+  └─ 检测到 Application(status=approved) → 启动归档工作流
+```
+
+**每个 OPT 只感知本体状态变化，不直接调用其他 OPT。** 这样各 OPT 解耦，任何一个 OPT 可以独立替换或升级。
+
+> **核心原则：OPT 完全不感知后续流程。**
+> 一个 OPT 完成自己的职责后，只做一件事：将处理结果写入外部系统（本体状态、工单系统、数据库）。
+> 是否有后续流程、由谁接手、何时触发，由外部系统负责记录和驱动。
+> 本 OPT 写完即止，不持有任何"下一步是谁"的知识。
+
+---
 
