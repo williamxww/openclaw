@@ -14,13 +14,13 @@
 ├── openclaw.json              ← 全局配置（模型/工具/MCP/技能/agent 路由）  声明所有 agent 及其 workspace 路径   
 ├── skills/                    ← 多 agent 共享的 managed skills
 └── agents/
-    ├── finance/
+    ├── main/
         └── agent/
-        │   └── auth-profiles.json   ← finance agent 独立的模型 auth
+        │   └── auth-profiles.json   ← main agent 独立的模型 auth
         └──  sessions   -- 历史记录
 
 ~/workspaces/                  ← 自定义位置，统一管理多个 workspace
-├── finance/                   ← agent "finance" 的 workspace
+├── main/                   ← agent "main" 的 workspace
 │   ├── AGENTS.md
 │   ├── SOUL.md
 │   ├── IDENTITY.md
@@ -29,12 +29,12 @@
 │   ├── HEARTBEAT.md
 │   ├── MEMORY.md
 │   ├── memory/
-│   ├── skills/                ← finance 专属 skill
-│   └── workflows/             ← finance 的 Lobster 工作流文件
+│   ├── skills/                ← main 专属 skill
+│   └── workflows/             ← main 的 Lobster 工作流文件
 ├── hr/                        ← agent "hr" 的 workspace
 │   ├── AGENTS.md
 │   └── ...
-└── ops/                       ← agent "ops" 的 workspace
+└── finance/                       ← agent "finance" 的 workspace
     ├── AGENTS.md
     └── ...
 
