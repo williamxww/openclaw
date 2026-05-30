@@ -60,11 +60,10 @@
         "workspace": "~/workspaces/hr"
       },
       {
-        "id": "ops",
-        "workspace": "~/workspaces/ops",
-        "default": true,
-        "agentDir": "/root/.openclaw/agents/main/agent",
-        "skills": ["ops-monitor", "alert-tool"]   // 只允许这些 skill
+        "id": "dataagent",
+        "workspace": "~/workspaces/dataagent",
+        "agentDir": "/root/.openclaw/agents/dataagent/agent",
+        "skills": ["nl2sql"]
       }
     ]
   },
