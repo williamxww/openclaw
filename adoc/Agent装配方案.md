@@ -632,9 +632,9 @@ Task Flow（自动）
 
 ---
 
-## 六、业务场景示例：OPC 公司申请
+## 六、业务场景示例：OPC 申请
 
-以 **OPC（运营主体资质）公司申请** 为例，说明业务流、OPT 划分和专家 agent 组成。
+以 **OPC（One Person Company，一人有限责任公司）申请** 为例，说明业务流、OPT 划分和专家 agent 组成。
 
 ---
 
@@ -680,7 +680,7 @@ Task Flow（自动）
 
 ```
 办事员 OPT
-├── 办事主任（Orchestrator）
+├── main（Orchestrator）
 │     职责：驱动本 OPT 内流程推进，决定何时完成预审并交接
 │           接收企业消息，路由给对应专家，汇总结论回复企业
 │
@@ -700,7 +700,7 @@ Task Flow（自动）
 
 ```
 联合审查 OPT
-├── 审查编排师（Orchestrator）
+├── main（Orchestrator）
 │     职责：接收 ReviewTask 待办，分配给专家，汇总报告
 │           推送"审查摘要 + 风险清单"给真实员工，等待决策
 │           收到员工结果后更新本体状态并触发后续
@@ -727,7 +727,7 @@ Task Flow（自动）
 
 ```
 归档 OPT
-├── 归档编排师（Orchestrator）
+├── main（Orchestrator）
 │     职责：检测 Application(status=approved)，启动公示和归档流程
 │           跟踪公示期，处理异议，最终关闭申请
 │
@@ -786,7 +786,7 @@ Task Flow（自动）
 ```markdown
 ---
 name: kb-opc-policy
-description: 查询 OPC 公司申请相关政策知识库
+description: 查询 OPC 申请相关政策知识库
 version: "1.0"
 tools:
   - kb-query
@@ -847,7 +847,7 @@ tools:
   - ontology-query
 ---
 
-# 业务本体：OPC 公司申请
+# 业务本体：OPC 申请
 
 ## 核心实体
 
@@ -916,7 +916,7 @@ ontology-query update --entity Application --id APP-2024-001 --set "status=appro
 #### 办事员 OPT 的 AGENTS.md Standing Orders 示例
 
 ```markdown
-## Program: OPC 公司申请 — 事前辅导
+## Program: OPC 申请 — 事前辅导
 
 **Authority:** 政策咨询、材料预审（不涉及写数据库）
 **Trigger:** 企业文员发起咨询，或新 Application 创建事件（status=draft）
@@ -941,7 +941,7 @@ ontology-query update --entity Application --id APP-2024-001 --set "status=appro
 #### 联合审查 OPT 的 AGENTS.md Standing Orders 示例
 
 ```markdown
-## Program: OPC 公司申请 — 联合审查
+## Program: OPC 申请 — 联合审查
 
 **Authority:** 辅助真实员工审查，不得代替员工做通过/驳回决定
 **Trigger:** ReviewTask 待办推送（type=joint_review, status=pending）
