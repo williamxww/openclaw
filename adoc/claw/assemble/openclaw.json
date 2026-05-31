@@ -1,0 +1,61 @@
+{
+  // Assemble Agent 自身的运行配置
+  // 该文件描述 assemble agent 使用的模型、工具和执行约束
+  // 不描述它生成的 OPT 的配置（那些由装配流程动态生成）
+
+  "agents": {
+    "defaults": {
+      "skipBootstrap": true,
+      "executionContract": "strict-agentic"
+    },
+    "list": [
+      {
+        "id": "assemble",
+        "workspace": "~/workspaces/assemble",
+        "executionContract": "strict-agentic"
+      }
+    ]
+  },
+
+  "models": {
+    "mode": "merge",
+    "providers": {
+      // 使用平台默认 LLM，由运维在部署时注入
+      // 替换为实际 provider 配置
+      "platform-default": {
+        "baseUrl": "$ENV:PLATFORM_LLM_BASE_URL",
+        "api": "openai-completions",
+        "apiKey": "$ENV:PLATFORM_LLM_API_KEY",
+        "models": [
+          {
+            "id": "$ENV:PLATFORM_LLM_MODEL_ID",
+            "name": "Platform Default LLM",
+            "contextWindow": 128000,
+            "maxTokens": 8192,
+            "input": ["text"],
+            "reasoning": false
+          }
+        ]
+      }
+    }
+  },
+
+  "tools": {
+    // assemble-api 和 dag2lobster 是平台提供的内部工具
+    "alsoAllow": ["assemble-api", "dag2lobster"]
+  },
+
+  "skills": {
+    "entries": {
+      // assemble agent 不需要知识库或业务本体 SKILL
+      // 它只需要平台工具
+    }
+  },
+
+  "mcp": {
+    "servers": {
+      // 如需接入外部模板仓库或配置中心，在此添加 MCP server
+    },
+    "sessionIdleTtlMs": 300000
+  }
+}
