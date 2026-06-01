@@ -12,6 +12,8 @@
 
 ## DAG 转换工具
 
+> `dag2lobster` 是平台自行实现的内部工具，不是 openclaw 原生能力。
+
 - DAG JSON → Lobster 工作流：`dag2lobster --input <dag.json> --output <workflow.lobster>`
 - DAG 校验（检查环、孤立节点、缺失字段）：`dag2lobster --validate --input <dag.json>`
 
