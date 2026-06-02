@@ -16,15 +16,14 @@
 
 ---
 
-## 模板版本记录
+## 渲染规范版本记录
 
-| 模板文件 | 当前版本 | 最后更新 | 变更说明 |
+workspace 文件按 `gen-workspace` SKILL 内联渲染，不依赖外部 `.tmpl` 文件。
+
+| 渲染规范 | 当前版本 | 最后更新 | 变更说明 |
 |---------|---------|---------|---------|
-| AGENTS.md.tmpl | 1.0 | — | 初始版本 |
-| SOUL.md.tmpl | 1.0 | — | 初始版本 |
-| IDENTITY.md.tmpl | 1.0 | — | 初始版本 |
-| USER.md.tmpl | 1.0 | — | 初始版本 |
-| TOOLS.md.tmpl | 1.0 | — | 初始版本 |
-| HEARTBEAT.md.tmpl | 1.0 | — | 初始版本 |
-| openclaw.json.tmpl | 1.0 | — | 初始版本 |
-| SKILL.md.tmpl | 1.0 | — | 初始版本 |
+| gen-workspace SKILL | 1.0 | — | 初始版本：渲染全套文件 + 写 MinIO |
+| AGENTS.md 渲染规则 | 1.0 | — | 初始版本 |
+| openclaw.json 渲染规则 | 1.0 | — | 初始版本 |
+| SKILL.md 渲染规则（kb-cli / onto-cli） | 1.0 | — | 初始版本 |
+| Lobster 工作流渲染规则 | 1.0 | — | 初始版本 |

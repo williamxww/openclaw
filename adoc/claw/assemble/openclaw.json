@@ -41,14 +41,14 @@
   },
 
   "tools": {
-    // assemble-api 和 dag2lobster 是平台提供的内部工具
-    "alsoAllow": ["assemble-api", "dag2lobster"]
+    // assemble-api / dag2lobster 是平台内部工具；mc 是 MinIO 客户端（写蓝图真源）
+    "alsoAllow": ["assemble-api", "dag2lobster", "mc"]
   },
 
   "skills": {
     "entries": {
-      // assemble agent 不需要知识库或业务本体 SKILL
-      // 它只需要平台工具
+      // 装配 agent 的核心能力：把 OPT 配置渲染成 workspace 文件并写入 MinIO
+      "gen-workspace": { "enabled": true }
     }
   },
 
