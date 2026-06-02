@@ -221,29 +221,53 @@
 
 ### `TOOLS.md` — 本地工具约定
 
-**不控制工具可用性**（那是 openclaw.json 的事），只记录本环境特有的配置信息。
+**不控制工具可用性**（那是 openclaw.json 的事），只记录本环境特有的连接信息和 CLI 调用约定。所有工具都已 CLI 化，统一格式 `<system>-cli <resource> <action> [选项] --json`，身份与权限由 pod ENV 注入的 token 决定，**命令里不传 userId**。
 
 **包含：**
 
 ```markdown
 # TOOLS.md
 
-## 数据库
-- 财务数据库：finance-db.internal:5432 / user: readonly_agent
-- 报表输出目录：/data/reports/finance/
+> 本文件只记录环境连接信息与 CLI 调用约定，不开关工具（工具可用性由 openclaw.json + SKILL 决定）。
+> 所有 CLI 统一 `--json` 输出，成功 `code:0`，失败 `code!=0` 且 message 带原因。
+> 调用只传业务参数，身份/权限走 ENV token，不在命令里传 userId。
 
-## API 端点
-- 订单系统：http://order-api.internal/v2
-- OA 系统：http://oa.internal/api
+## 知识库工具（kb-cli）
+- 用途：对挂载的知识库做语义检索、取原文（非结构化文本问答）。
+- 检索：`kb-cli search --kb <kbId> --query "<问题>" --topk 5 --json`
+- 取全文：`kb-cli get --kb <kbId> --doc-id <id> --json`
+- 已挂载知识库：hr-policy（HR 政策库）、onboarding（入职手册库）
+- 细节见各 `skills/kb-<id>/SKILL.md`。
 
-## 常用命令别名
-- 账单检查：`finance-cli check --json`
-- 月报生成：`finance-cli report --month YYYY-MM --json`
+## 本体工具（onto-cli）
+- 用途：查结构化的概念 / 关系 / 属性（实体三元组），与 kb-cli 互补。
+- 取概念：`onto-cli concept get --onto <ontoId> --name "<概念>" --json`
+- 查关系：`onto-cli relation list --onto <ontoId> --entity "<实体>" --rel "<关系>" --json`
+- 表达式查询：`onto-cli query --onto <ontoId> --expr "<查询表达式>" --json`
+- 已挂载本体：hr-leave（请假本体）、org-chart（组织架构本体）
+- 细节见各 `skills/ontology-<id>/SKILL.md`。
+
+## 业务系统工具
+- HR 系统（hr-cli）：`hr-cli leave list --status <s> --json`、`hr-cli leave create ... --json`
+  - 端点：http://hr.internal/api ；权限：hr:leave:read, hr:leave:create
+- 订单系统（order-cli）：`order-cli ticket list --assignee me --status new --json`
+  - 端点：http://order-api.internal/v2 ；权限：order:ticket:read, order:ticket:handle
+
+## 待办工具（todo-cli）
+- 用途：拉取并处理属于本 OPT 的业务待办（token 决定 opt_id，不传 userId）。
+- 拉取：`todo-cli list --status pending --json`
+- 认领：`todo-cli claim --id <todoId> --json`
+- 完成：`todo-cli done --id <todoId> --json`
+- 失败：`todo-cli fail --id <todoId> --reason "<原因>" --json`
 
 ## 注意事项
-- 所有写操作需要走 approval gate
-- finance-db 只读，不得直接 INSERT/UPDATE
+- 写操作（create / update / 执行类）必须走 approval gate，不得静默执行。
+- 无 delete 权限；遇到删除类请求，告知用户联系管理员，不要尝试调用。
+- 检索结论必须基于 kb-cli / onto-cli 返回内容，标注来源，不凭记忆编造。
+- CLI 返回 `code!=0` 时停止并上报 message，不重试、不绕过。
 ```
+
+> 提示：本样例里的工具清单、端点、已挂载知识库 / 本体都由装配 Agent 按后台登记的 OPT 配置自动渲染，一个 OPT 一份 TOOLS.md。
 
 ---
 
