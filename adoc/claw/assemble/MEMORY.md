@@ -39,7 +39,7 @@
 
 ## 路径约定（固定，不得更改）
 
-- 本地暂存根：`~/.openclaw/output/<opt_id>/`（每个 agent 在 `workspace/<agent_id>/`，main = `workspace/main/`；全局 `openclaw.json` 在 `openclaw/`）
+- 本地暂存根：`~/.openclaw/output/<opt_id>/`（全局 `openclaw.json` 在根下；每个 agent 在 `workspace/<agent_id>/`，main = `workspace/main/`）
 - MinIO 蓝图前缀：`kdx-minio/assemble/<opt_id>/`（bucket `assemble` 已预建，镜像同样结构）
 - `<opt_id>` 取自 OPT 配置 `opt.id`，路径由它唯一决定，本地与远端结构镜像
 - 上传只用 `mc`，不用 aws s3

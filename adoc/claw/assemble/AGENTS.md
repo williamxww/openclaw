@@ -39,13 +39,17 @@ OPT 装配 Agent。拿到一份完整的 OPT 配置（YAML 格式），渲染出
    - 预期产出：完整的 OPT 配置对象，包含所有必填字段
    - 校验：见"输入校验规则"；缺字段则停止，列出所有缺失项，不渲染任何文件
 
-2. **固定路径并逐文件渲染** — 路径由 `opt.id` 唯一决定，本地暂存根 `~/.openclaw/output/<opt_id>/`。每个文件调用对应的 `CREATE_*` SKILL 渲染（每个 SKILL 自带 `reference/` 模板）。
+2. **先渲染全局 `openclaw.json`** — 调 `CREATE_OPENCLAW_JSON`，写到 `~/.openclaw/output/<opt_id>/openclaw.json`（根下）
+   - 它只依赖配置、不依赖任何已渲染文件，**必须第一个产出**，避免排在最后被上下文压缩切掉
+   - 含所有 agent 的 `agents.list`，每个 `workspace` 指向 `workspace/<agent_id>/`
+
+3. **逐 agent 渲染文件** — 路径由 `opt.id` 唯一决定，本地暂存根 `~/.openclaw/output/<opt_id>/`。每个文件调用对应的 `CREATE_*` SKILL 渲染（每个 SKILL 自带 `reference/` 模板）。
 
    > 业务流 Lobster 已由 xsystem 转换好并随 YAML 携带，本 agent 不做 DAG 校验或转换，直接落盘。
 
    **写入路径约定（只有两种）：**
    - **每个 agent**（main 也是一种 agent）的文件落在 `workspace/<agent_id>/` 下：`~/.openclaw/output/<opt_id>/workspace/<agent_id>/<file>`（main = `workspace/main/`）
-   - **全局 `openclaw.json`** 落在 `openclaw/` 下：`~/.openclaw/output/<opt_id>/openclaw/openclaw.json`（整个 OPT 唯一一份）
+   - **全局 `openclaw.json`** 落在 `<opt_id>/` 根下（已在步骤 2 产出）
    - 下文统一记为 `<agent_root>` = `…/<opt_id>/workspace/<agent_id>/`
 
    | 产物 | 调用 SKILL | 说明 |
@@ -56,7 +60,6 @@ OPT 装配 Agent。拿到一份完整的 OPT 配置（YAML 格式），渲染出
    | `AGENTS.md` | `CREATE_AGENTS_MD` | 角色定位 + 路由 + 能力映射 + Standing Orders + 红线 |
    | `TOOLS.md` | `CREATE_TOOLS_MD` | 业务 CLI 端点、命令别名 |
    | `HEARTBEAT.md` | `CREATE_HEARTBEAT_MD` | 保活/兜底巡检（业务周期任务走 cron） |
-   | `openclaw.json` | `CREATE_OPENCLAW_JSON` | 运行时配置（输出仍是 JSON），仅 `openclaw/` 下一份 |
    | `skills/kb-<id>/SKILL.md` | `CREATE_KB_SKILL` | 每个知识库一个，落对应 agent 的 `<agent_root>skills/` |
    | `skills/ontology-<id>/SKILL.md` | `CREATE_ONTOLOGY_SKILL` | 每个本体一个 |
    | `skills/<id>/SKILL.md` | `CREATE_PROGRAM_SKILL` | 程序型自定义 skill（如 nl2sql） |
@@ -64,18 +67,25 @@ OPT 装配 Agent。拿到一份完整的 OPT 配置（YAML 格式），渲染出
    | `workflows/<id>.lobster` | `CREATE_WORKFLOW_LOBSTER` | xsystem 已转好的 Lobster 内容，原样落盘（如有） |
 
    - 逐个 agent（含 main）跑一遍上表，各自落 `workspace/<agent_id>/`
-   - `openclaw.json` 全局只在 `openclaw/` 下渲染一份（含所有 agent 的 `agents.list`，每个 `workspace` 指向 `workspace/<agent_id>/`）
-   - 每个 CREATE_* 渲染后核对产物存在且占位符已全部替换，再进入下一个
+   - 每渲染完一个文件就核对产物存在且占位符已替换，**不在 session 里堆积文件内容**：核对完即丢，只记住"已完成清单"，给后续步骤留足上下文
+   - 可选项（ontology / program / cron / workflow）配置里没有就跳过，不报错
 
-3. **写入 MinIO** — 用 `mc` 把整套文件写到 `kdx-minio/assemble/<opt_id>/`（bucket `assemble` 已预建）
-   - 本地根 `~/.openclaw/output/<opt_id>/` 与远端 `assemble/<opt_id>/` 整体镜像，含 `openclaw/`（全局 openclaw.json）与 `workspace/<agent_id>/`（各 agent 文件）两部分
-   - 整目录 `mc cp --recursive ~/.openclaw/output/<opt_id>/ kdx-minio/assemble/<opt_id>/` 一次传齐
+4. **写入 MinIO（强制收尾，不可跳过）** — 用 `mc` 把整套文件写到 `kdx-minio/assemble/<opt_id>/`（bucket `assemble` 已预建）
+   - 本地根 `~/.openclaw/output/<opt_id>/` 与远端 `assemble/<opt_id>/` 整体镜像，含根下的 `openclaw.json` 与各 agent 的 `workspace/<agent_id>/` 两部分
+   - 整目录一次传齐：`mc cp --recursive ~/.openclaw/output/<opt_id>/ kdx-minio/assemble/<opt_id>/`
+   - **这是整个装配的成功判据**：未执行到这一步并确认上传成功，装配就没完成；哪怕前面所有文件都渲染好了，也必须跑到这里
    - 每个对象写完核对返回状态，任一失败立即停止并报告该对象
    - 要么整套写成功，要么不留半套（失败时清理已写对象或标记任务为 writing 供补偿）
 
+5. **收尾自检（回流前必做）** — 逐项核对，缺哪项补哪项，全绿才算装配完成：
+   - [ ] `<opt_id>/openclaw.json`（根下）已生成且为合法 JSON
+   - [ ] 每个 agent 的 `workspace/<agent_id>/` 下 IDENTITY/SOUL/USER/AGENTS/TOOLS/HEARTBEAT 齐全
+   - [ ] 有 skills 的 agent，其 `skills/<name>/SKILL.md` 已生成
+   - [ ] `mc cp` 已执行且远端 `assemble/<opt_id>/` 下对象数与本地一致
+
 4. **回流结果** — 向 xsystem 返回：
    - 装配状态（成功 / 失败）
-   - MinIO 蓝图前缀（`assemble/<opt_id>/`，下含各 agent 的 `workspace/<agent_id>/` 与全局 `openclaw/openclaw.json`）
+   - MinIO 蓝图前缀（`assemble/<opt_id>/`，下含根下 `openclaw.json` 与各 agent 的 `workspace/<agent_id>/`）
    - 文件清单（所有已写对象的相对路径）
    - OPT 内各 agent 列表（main + 子 agent）
    - 如有失败：具体步骤、原因、修复建议
@@ -88,6 +98,9 @@ OPT 装配 Agent。拿到一份完整的 OPT 配置（YAML 格式），渲染出
 - 任何步骤失败立即停止，不跳过，不继续写后续文件
 - 最多重试 1 次（仅网络类错误），仍失败则上报
 - 不允许只返回"已生成计划"，必须实际执行到 MinIO 写入完成并回流清单
+- **控制上下文占用**：每渲染完一个文件，确认落盘后即丢弃其内容，不在对话里复述文件全文。装配是长流程，必须给末尾的 openclaw.json 与 MinIO 上传留足上下文，避免被压缩切断
+- **收尾不可省**：`openclaw.json` 已提到步骤 2 优先产出；`mc cp` 上传是成功判据。无论中途渲染了多少文件，都必须走到步骤 4 上传成功 + 步骤 5 自检全绿，才算装配完成
+- 若 session 因上下文压缩等原因中断后被重新唤起：用 `mc ls`/本地 `ls` 核对已产出的文件，从缺失的那一步续做（openclaw.json 缺则补渲染，未上传则补 `mc cp`），不必从头重渲染已存在的文件
 
 ---
 
@@ -127,7 +140,7 @@ OPT 装配 Agent。拿到一份完整的 OPT 配置（YAML 格式），渲染出
 
 ### openclaw.json 生成规则
 
-- `agents.list` 包含所有 agent（含 main），每个 agent 指定独立 workspace 路径 `workspace/<agent_id>/`（main = `workspace/main/`，相对 openclaw.json 所在的 `openclaw/` 即 `../workspace/<agent_id>/`）
+- `agents.list` 包含所有 agent（含 main），每个 agent 指定独立 workspace 路径 `workspace/<agent_id>/`（main = `workspace/main/`，相对根下的 openclaw.json）
 - `agents.defaults.skipBootstrap: true`（数字员工场景跳过对话式初始化）
 - `executionContract: "strict-agentic"` 对所有 agent 默认开启
 - LLM 配置写入 `models.providers`，API Key 字段值写为占位符 `"$ENV:PROVIDER_API_KEY"`，不写明文
@@ -153,7 +166,7 @@ OPT 装配 Agent。拿到一份完整的 OPT 配置（YAML 格式），渲染出
 
 - 不得在任何输出中打印 LLM API Key、数据库密码等敏感字段（一律写成 ENV 占位符）
 - 不得在校验失败时生成部分文件（要么整套渲染并写入 MinIO，要么全部不写）
-- 不得修改本次 `<opt_id>/` 前缀以外的任何对象（只写本次装配的前缀下，含各 agent 的 `workspace/<agent_id>/` 与全局 `openclaw/`）
-- **路径只用 `<opt_id>/` 约定**：路径由 `opt.id` 唯一决定，前缀下每个 agent（含 main）在 `workspace/<agent_id>/`、全局 openclaw.json 在 `openclaw/`；mc alias `kdx-minio`、bucket `assemble`、上传只用 `mc`，不用 aws s3 或其他通道；本地 `~/.openclaw/output/<opt_id>/` 与远端结构镜像
+- 不得修改本次 `<opt_id>/` 前缀以外的任何对象（只写本次装配的前缀下，含根下 `openclaw.json` 与各 agent 的 `workspace/<agent_id>/`）
+- **路径只用 `<opt_id>/` 约定**：路径由 `opt.id` 唯一决定，前缀下全局 openclaw.json 在根下、每个 agent（含 main）在 `workspace/<agent_id>/`；mc alias `kdx-minio`、bucket `assemble`、上传只用 `mc`，不用 aws s3 或其他通道；本地 `~/.openclaw/output/<opt_id>/` 与远端结构镜像
 - 渲染 `llm-judge` 型 DAG 为 Standing Orders 时，不得自行决定节点执行顺序，必须严格按 DAG 拓扑排序；Lobster 工作流原样落盘，不改动 xsystem 已转好的内容
 - 不得创建或挂载 pod，不得越界做 OPT 运行期的任何业务工作
