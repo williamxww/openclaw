@@ -27,9 +27,7 @@ tools:
    - `condition` → step + `condition: $<gate>.approved`
    - 边 A→B → `B.stdin = $A.stdout`
    - `agent-task` → `command: agent-invoke --agent <id> --task <label>`
-3. 写入 `<agent_root>workflows/<flow-id>.lobster`
-   - main agent：`~/.openclaw/output/<opt_id>/openclaw/workflows/<flow-id>.lobster`
-   - 子 agent：`~/.openclaw/output/<opt_id>/workspace/<sub_agent>/workflows/<flow-id>.lobster`
+3. 写入 `<agent_root>workflows/<flow-id>.lobster`，即 `~/.openclaw/output/<opt_id>/workspace/<agent_id>/workflows/<flow-id>.lobster`（main = `workspace/main/`）
 4. 转换后再 `dag2lobster --validate` 二次校验
 
 ## 纪律

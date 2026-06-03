@@ -19,9 +19,7 @@ tools:
 
 1. 对每个 ontology 项，读取 `reference/ontology-SKILL.template.md`
 2. 替换 `{{ONTO_ID}}` `{{ONTO_DISPLAY_NAME}}` `{{ONTO_DOMAIN}}` `{{ONTO_PERMISSION}}`
-3. 写入 `<agent_root>skills/ontology-<id>/SKILL.md`
-   - main agent：`~/.openclaw/output/<opt_id>/openclaw/skills/ontology-<id>/SKILL.md`
-   - 子 agent：`~/.openclaw/output/<opt_id>/workspace/<sub_agent>/skills/ontology-<id>/SKILL.md`
+3. 写入 `<agent_root>skills/ontology-<id>/SKILL.md`，即 `~/.openclaw/output/<opt_id>/workspace/<agent_id>/skills/ontology-<id>/SKILL.md`（main = `workspace/main/`）
 4. 选 N 个本体就生成 N 个（一对一）
 
 ## 纪律

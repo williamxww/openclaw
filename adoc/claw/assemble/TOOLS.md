@@ -23,7 +23,7 @@ agent 拿到一份完整的 OPT 配置（YAML 格式）即据此创建蓝图—�
 
 - mc alias：`kdx-minio`
 - bucket：`assemble`（已预先创建，直接使用，不需新建）
-- 远端前缀：`assemble/<opt_id>/`（下含 `openclaw/` 与 `workspace/<sub_agent>/`）
+- 远端前缀：`assemble/<opt_id>/`（下含各 agent 的 `workspace/<agent_id>/` 与全局 `openclaw/openclaw.json`）
 - `<opt_id>`：本次 OPT 的唯一标识（取自 OPT 配置的 `opt.id`）
 
 ```bash
@@ -31,7 +31,7 @@ LOCAL=~/.openclaw/output/<opt_id>
 REMOTE=kdx-minio/assemble/<opt_id>
 
 # 整目录上传一套蓝图（本地结构镜像远端）
-# 含 main 的 openclaw/ 与子 agent 的 workspace/<sub_agent>/，一次传齐
+# 含各 agent 的 workspace/<agent_id>/ 与全局 openclaw/openclaw.json，一次传齐
 mc cp --recursive "$LOCAL/" "$REMOTE/"
 ```
 
@@ -39,7 +39,7 @@ mc cp --recursive "$LOCAL/" "$REMOTE/"
 - MinIO 连接信息（endpoint / access key / secret）由平台经 ENV 注入并已配好 `kdx-minio` alias，不写进任何文件。
 - 写入是装配 agent 对 MinIO 的**唯一写方向**；运行后操作员经 UI 改文件由 xsystem 写 MinIO，不经本 agent。
 
-> **红线：一套蓝图只落一个 `<opt_id>/` 前缀。** 路径由 `opt.id` 唯一决定，装配全程不变；前缀下含 main 的 `openclaw/` 与子 agent 的 `workspace/<sub_agent>/`，本地与远端结构镜像，整目录上传。
+> **红线：一套蓝图只落一个 `<opt_id>/` 前缀。** 路径由 `opt.id` 唯一决定，装配全程不变；前缀下含各 agent（含 main）的 `workspace/<agent_id>/` 与全局 `openclaw/openclaw.json`，本地与远端结构镜像，整目录上传。
 
 ## DAG 转换工具
 
@@ -71,14 +71,14 @@ mc cp --recursive "$LOCAL/" "$REMOTE/"
 
 ## 输出目录
 
-路径由 `<opt_id>` 决定，本地与远端结构一致。前缀下分两部分：main agent 在 `openclaw/`，子 agent 在 `workspace/<sub_agent>/`：
+路径由 `<opt_id>` 决定，本地与远端结构一致。前缀下分两部分：每个 agent（含 main）的文件在 `workspace/<agent_id>/`，全局 `openclaw.json` 在 `openclaw/`：
 
 - 本地渲染暂存根：`~/.openclaw/output/<opt_id>/`
-  - main：`~/.openclaw/output/<opt_id>/openclaw/`
-  - 子 agent：`~/.openclaw/output/<opt_id>/workspace/<sub_agent>/`
+  - 每个 agent：`~/.openclaw/output/<opt_id>/workspace/<agent_id>/`（main = `workspace/main/`）
+  - 全局配置：`~/.openclaw/output/<opt_id>/openclaw/openclaw.json`
 - MinIO 蓝图前缀：`kdx-minio/assemble/<opt_id>/`（镜像同样结构）
 
-> 本地与远端镜像，从 `<opt_id>/` 根 `mc cp --recursive` 整目录上传，一次传齐 `openclaw/` 与 `workspace/`，避免漏传或路径漂移。
+> 本地与远端镜像，从 `<opt_id>/` 根 `mc cp --recursive` 整目录上传，一次传齐 `workspace/` 与 `openclaw/`，避免漏传或路径漂移。
 
 ## 注意事项
 

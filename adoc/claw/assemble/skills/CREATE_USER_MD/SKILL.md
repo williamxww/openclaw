@@ -20,7 +20,7 @@ tools:
 
 1. 读取 `reference/USER.template.md`
 2. 替换 `{{OWNER_NAME}}` `{{OWNER_ROLE}}` `{{OWNER_ADDRESS}}` `{{TIMEZONE}}` `{{LANGUAGE}}` `{{NOTES}}` `{{PERMISSION_BOUNDARY}}`
-3. 写入 workspace 根 `~/.openclaw/output/<opt_id>/openclaw/USER.md`（服务对象全局唯一，只在根写一份）
+3. 写入 `<agent_root>USER.md`，即 `~/.openclaw/output/<opt_id>/workspace/<agent_id>/USER.md`（每个 agent 一份，main = `workspace/main/`）
 
 ## 纪律
 

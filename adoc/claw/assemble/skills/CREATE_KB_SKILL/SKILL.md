@@ -21,9 +21,7 @@ tools:
 
 1. 对每个 kb 项，读取 `reference/kb-SKILL.template.md`
 2. 替换 `{{KB_ID}}` `{{KB_DISPLAY_NAME}}` `{{KB_DOMAIN}}` `{{KB_PERMISSION}}` `{{REFERENCE_FILES}}`
-3. 写入 `<agent_root>skills/kb-<id>/SKILL.md`
-   - main agent：`~/.openclaw/output/<opt_id>/openclaw/skills/kb-<id>/SKILL.md`
-   - 子 agent：`~/.openclaw/output/<opt_id>/workspace/<sub_agent>/skills/kb-<id>/SKILL.md`
+3. 写入 `<agent_root>skills/kb-<id>/SKILL.md`，即 `~/.openclaw/output/<opt_id>/workspace/<agent_id>/skills/kb-<id>/SKILL.md`（main = `workspace/main/`）
 4. 把上传的参考文件放入同目录 `reference/` 子目录
 5. 选 N 个知识库就生成 N 个（一对一）
 

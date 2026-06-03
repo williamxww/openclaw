@@ -20,9 +20,7 @@ tools:
 1. 读取 `reference/HEARTBEAT.template.md`
 2. 无保活需求 → `{{HEARTBEAT_BODY}}` 写"无常驻心跳。每次 session 对应一个请求，处理完即结束。"
 3. 有保活需求 → 列成简短 checklist，避免 token 浪费
-4. 写入 `<agent_root>HEARTBEAT.md`
-   - main agent：`~/.openclaw/output/<opt_id>/openclaw/HEARTBEAT.md`
-   - 子 agent：`~/.openclaw/output/<opt_id>/workspace/<sub_agent>/HEARTBEAT.md`
+4. 写入 `<agent_root>HEARTBEAT.md`，即 `~/.openclaw/output/<opt_id>/workspace/<agent_id>/HEARTBEAT.md`（main = `workspace/main/`）
 
 ## 纪律
 

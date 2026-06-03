@@ -27,9 +27,7 @@ tools:
 3. `capabilities[]` → `{{CAPABILITY_TABLE}}`（能力 / 类型 / 工具 / 约束 四列）
 4. Standing Orders：read 能力 → 自主执行；write 能力 → Approval gate（先 `--dry-run` + 确认）；`llm-judge` DAG 节点按拓扑序展开为步骤
 5. `redlines[]` → `{{RED_LINES}}`；`writeOrder[]` 落入对应 Standing Order
-6. 写入 `<agent_root>AGENTS.md`
-   - main agent：`~/.openclaw/output/<opt_id>/openclaw/AGENTS.md`
-   - 子 agent：`~/.openclaw/output/<opt_id>/workspace/<sub_agent>/AGENTS.md`
+6. 写入 `<agent_root>AGENTS.md`，即 `~/.openclaw/output/<opt_id>/workspace/<agent_id>/AGENTS.md`（main = `workspace/main/`）
 
 ## 纪律
 

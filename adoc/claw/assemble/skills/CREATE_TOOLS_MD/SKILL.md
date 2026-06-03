@@ -20,9 +20,7 @@ tools:
 1. 读取 `reference/TOOLS.template.md`
 2. 每个 CLI 一节，列出连接信息、命令示例、输出格式；`{{CLI_SECTIONS}}`
 3. 把"只读账号""写操作需 dry-run""结果回写 memory"等约束写进 `{{NOTES}}`
-4. 写入 `<agent_root>TOOLS.md`
-   - main agent：`~/.openclaw/output/<opt_id>/openclaw/TOOLS.md`
-   - 子 agent：`~/.openclaw/output/<opt_id>/workspace/<sub_agent>/TOOLS.md`
+4. 写入 `<agent_root>TOOLS.md`，即 `~/.openclaw/output/<opt_id>/workspace/<agent_id>/TOOLS.md`（main = `workspace/main/`）
 
 ## 纪律
 
