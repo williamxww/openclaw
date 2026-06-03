@@ -17,7 +17,7 @@ agent 拿到一份完整的 OPT 配置（YAML 格式）即据此创建蓝图—�
 
 ## 写入 MinIO（蓝图真源）
 
-渲染后的 workspace 文件通过 `gen-workspace` SKILL 用 `mc` 直接写入 MinIO。一套文件 = 一个 OPT 蓝图。
+各 `CREATE_*` SKILL 渲染后的 workspace 文件用 `mc` 直接写入 MinIO。一套文件 = 一个 OPT 蓝图。
 
 **路径约定（固定，装配过程中不得更改）：**
 
@@ -51,13 +51,22 @@ mc cp --recursive "$LOCAL/" "$REMOTE/"
 
 ## 文件模板
 
-workspace 文件按 `gen-workspace` SKILL 里的规范内联渲染，不依赖外部 `.tmpl` 文件。需要渲染的文件集：
+每个产物由对应的 `CREATE_*` SKILL 渲染，模板放在各 SKILL 自己的 `reference/` 子目录下（不依赖外部 `.tmpl` 文件）：
 
-- `IDENTITY.md` / `SOUL.md` / `USER.md` / `AGENTS.md` / `TOOLS.md` / `HEARTBEAT.md`
-- `openclaw.json`（LLM 配置、SKILL 列表、MCP 服务、executionContract）
-- `skills/<kb-name>/SKILL.md`（每个知识库一个）
-- `skills/<ontology-name>/SKILL.md`（每个本体一个）
-- `workflows/<flow-name>.lobster`（每个 DAG 一个，如有）
+| 产物 | SKILL | 模板 |
+|------|-------|------|
+| `IDENTITY.md` | `CREATE_IDENTITY_MD` | `reference/IDENTITY.template.md` |
+| `SOUL.md` | `CREATE_SOUL_MD` | `reference/SOUL.template.md` |
+| `USER.md` | `CREATE_USER_MD` | `reference/USER.template.md` |
+| `AGENTS.md` | `CREATE_AGENTS_MD` | `reference/AGENTS.template.md` |
+| `TOOLS.md` | `CREATE_TOOLS_MD` | `reference/TOOLS.template.md` |
+| `HEARTBEAT.md` | `CREATE_HEARTBEAT_MD` | `reference/HEARTBEAT.template.md` |
+| `openclaw.json` | `CREATE_OPENCLAW_JSON` | `reference/openclaw.template.json` |
+| `skills/kb-<id>/SKILL.md` | `CREATE_KB_SKILL` | `reference/kb-SKILL.template.md` |
+| `skills/ontology-<id>/SKILL.md` | `CREATE_ONTOLOGY_SKILL` | `reference/ontology-SKILL.template.md` |
+| `skills/<id>/SKILL.md` | `CREATE_PROGRAM_SKILL` | `reference/program-SKILL.template.md` |
+| `cron/jobs.json` | `CREATE_CRON_JOBS` | `reference/jobs.template.json` |
+| `workflows/<id>.lobster` | `CREATE_WORKFLOW_LOBSTER` | `reference/workflow.template.lobster` |
 
 ## 输出目录
 

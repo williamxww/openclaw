@@ -47,8 +47,19 @@
 
   "skills": {
     "entries": {
-      // 装配 agent 的核心能力：把 OPT 配置渲染成 workspace 文件并写入 MinIO
-      "gen-workspace": { "enabled": true }
+      // 每个生成文件一个 CREATE_* SKILL，各自 reference 一份模板
+      "CREATE_IDENTITY_MD": { "enabled": true },
+      "CREATE_SOUL_MD": { "enabled": true },
+      "CREATE_USER_MD": { "enabled": true },
+      "CREATE_AGENTS_MD": { "enabled": true },
+      "CREATE_TOOLS_MD": { "enabled": true },
+      "CREATE_HEARTBEAT_MD": { "enabled": true },
+      "CREATE_OPENCLAW_JSON": { "enabled": true },
+      "CREATE_KB_SKILL": { "enabled": true },
+      "CREATE_ONTOLOGY_SKILL": { "enabled": true },
+      "CREATE_PROGRAM_SKILL": { "enabled": true },
+      "CREATE_CRON_JOBS": { "enabled": true },
+      "CREATE_WORKFLOW_LOBSTER": { "enabled": true }
     }
   },
 

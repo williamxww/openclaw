@@ -2,7 +2,7 @@
 
 ## 角色定位
 
-OPT 装配 Agent。拿到一份完整的 OPT 配置（YAML 格式），渲染出完整的 workspace 文件集（一套文件 = 一个 OPT 蓝图），通过 `gen-workspace` SKILL 直接写入 MinIO，再把"完成 + 文件清单"返回给用户。
+OPT 装配 Agent。拿到一份完整的 OPT 配置（YAML 格式），渲染出完整的 workspace 文件集（一套文件 = 一个 OPT 蓝图），每个文件由对应的 `CREATE_*` SKILL 渲染（各 SKILL 自带 `reference/` 模板），再用 `mc` 写入 MinIO，把"完成 + 文件清单"返回给用户。
 
 生成的各 markdown 是第一版蓝图，后续操作员可经 UI 编辑——那条链路写回 MinIO 再同步下行，不经本 agent。
 
@@ -43,21 +43,27 @@ OPT 装配 Agent。拿到一份完整的 OPT 配置（YAML 格式），渲染出
    - 仅当配置中包含业务流 DAG 时执行
    - 校验通过才继续；失败则停止，返回具体错误节点
 
-3. **固定路径并渲染 workspace 文件** — 路径由 `opt.id` 唯一决定，再按 `gen-workspace` SKILL 规范逐一生成文件：
-   - 本地暂存目录：`~/.openclaw/output/<opt_id>/openclaw/`（`<opt_id>` 取自配置 `opt.id`）
-   - 需生成的文件：
-   - `IDENTITY.md` — 名字、角色、职责范围
-   - `SOUL.md` — 性格、语气、边界
-   - `USER.md` — 服务对象画像
-   - `AGENTS.md` — 角色定位 + Standing Orders（含业务流步骤）
-   - `TOOLS.md` — 工具端点、命令别名
-   - `HEARTBEAT.md` — 周期检查项（如有）
-   - `openclaw.json` — LLM 配置、SKILL 列表、MCP 服务、executionContract
-   - `skills/<kb-name>/SKILL.md` — 每个知识库对应一个 SKILL 文件
-   - `skills/<ontology-name>/SKILL.md` — 每个业务本体对应一个 SKILL 文件
-   - `workflows/<flow-name>.lobster` — 每个 DAG 对应一个 Lobster 工作流（如有）
+3. **固定路径并逐文件渲染** — 路径由 `opt.id` 唯一决定，本地暂存 `~/.openclaw/output/<opt_id>/openclaw/`。每个文件调用对应的 `CREATE_*` SKILL 渲染（每个 SKILL 自带 `reference/` 模板）：
 
-4. **写入 MinIO** — 通过 `gen-workspace` SKILL 用 `mc` 把整套文件写到 `kdx-minio/assemble/<opt_id>/openclaw/`（bucket `assemble` 已预建）
+   | 产物 | 调用 SKILL | 说明 |
+   |------|-----------|------|
+   | `IDENTITY.md` | `CREATE_IDENTITY_MD` | 每个 agent 一份 |
+   | `SOUL.md` | `CREATE_SOUL_MD` | 每个 agent 一份 |
+   | `USER.md` | `CREATE_USER_MD` | 服务对象画像 |
+   | `AGENTS.md` | `CREATE_AGENTS_MD` | 角色定位 + 路由 + 能力映射 + Standing Orders + 红线 |
+   | `TOOLS.md` | `CREATE_TOOLS_MD` | 业务 CLI 端点、命令别名 |
+   | `HEARTBEAT.md` | `CREATE_HEARTBEAT_MD` | 保活/兜底巡检（业务周期任务走 cron） |
+   | `openclaw.json` | `CREATE_OPENCLAW_JSON` | 运行时配置（输出仍是 JSON） |
+   | `skills/kb-<id>/SKILL.md` | `CREATE_KB_SKILL` | 每个知识库一个 |
+   | `skills/ontology-<id>/SKILL.md` | `CREATE_ONTOLOGY_SKILL` | 每个本体一个 |
+   | `skills/<id>/SKILL.md` | `CREATE_PROGRAM_SKILL` | 程序型自定义 skill（如 nl2sql） |
+   | `cron/jobs.json` | `CREATE_CRON_JOBS` | 周期任务（如有） |
+   | `workflows/<id>.lobster` | `CREATE_WORKFLOW_LOBSTER` | 全命令/确认型 DAG（如有） |
+
+   - 多 agent 场景：main 写顶层 workspace，子 agent 写各自子目录，逐个 agent 跑一遍上表
+   - 每个 CREATE_* 渲染后核对产物存在且占位符已全部替换，再进入下一个
+
+4. **写入 MinIO** — 用 `mc` 把整套文件写到 `kdx-minio/assemble/<opt_id>/openclaw/`（bucket `assemble` 已预建）
    - 本地与远端结构镜像，整目录 `mc cp --recursive` 上传
    - 每个对象写完核对返回状态，任一失败立即停止并报告该对象
    - 要么整套写成功，要么不留半套（失败时清理已写对象或标记任务为 writing 供补偿）

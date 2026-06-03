@@ -1,0 +1,31 @@
+{
+  "agents": {
+    "defaults": {
+      "skipBootstrap": true,
+      "executionContract": "strict-agentic"
+    },
+    "list": [
+      {{AGENT_LIST}}
+    ]
+  },
+  "models": {
+    "mode": "merge",
+    "providers": {
+      {{MODEL_PROVIDERS}}
+    }
+  },
+  "tools": {
+    "alsoAllow": [{{TOOLS_ALLOW}}]
+  },
+  "skills": {
+    "entries": {
+      {{SKILL_ENTRIES}}
+    }
+  },
+  "mcp": {
+    "servers": {
+      {{MCP_SERVERS}}
+    },
+    "sessionIdleTtlMs": 300000
+  }
+}

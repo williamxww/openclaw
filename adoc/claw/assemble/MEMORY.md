@@ -18,15 +18,22 @@
 
 ## 渲染规范版本记录
 
-workspace 文件按 `gen-workspace` SKILL 内联渲染，不依赖外部 `.tmpl` 文件。
+每个产物由独立的 `CREATE_*` SKILL 渲染，模板放在各 SKILL 自己的 `reference/` 子目录下。
 
-| 渲染规范 | 当前版本 | 最后更新 | 变更说明 |
-|---------|---------|---------|---------|
-| gen-workspace SKILL | 1.0 | — | 初始版本：渲染全套文件 + 写 MinIO |
-| AGENTS.md 渲染规则 | 1.0 | — | 初始版本 |
-| openclaw.json 渲染规则 | 1.0 | — | 初始版本 |
-| SKILL.md 渲染规则（kb-cli / onto-cli） | 1.0 | — | 初始版本 |
-| Lobster 工作流渲染规则 | 1.0 | — | 初始版本 |
+| CREATE_* SKILL | 产物 | 当前版本 | 最后更新 |
+|---------------|------|---------|---------|
+| CREATE_IDENTITY_MD | IDENTITY.md | 1.0 | — |
+| CREATE_SOUL_MD | SOUL.md | 1.0 | — |
+| CREATE_USER_MD | USER.md | 1.0 | — |
+| CREATE_AGENTS_MD | AGENTS.md | 1.0 | — |
+| CREATE_TOOLS_MD | TOOLS.md | 1.0 | — |
+| CREATE_HEARTBEAT_MD | HEARTBEAT.md | 1.0 | — |
+| CREATE_OPENCLAW_JSON | openclaw.json | 1.0 | — |
+| CREATE_KB_SKILL | skills/kb-*/SKILL.md | 1.0 | — |
+| CREATE_ONTOLOGY_SKILL | skills/ontology-*/SKILL.md | 1.0 | — |
+| CREATE_PROGRAM_SKILL | skills/*/SKILL.md | 1.0 | — |
+| CREATE_CRON_JOBS | cron/jobs.json | 1.0 | — |
+| CREATE_WORKFLOW_LOBSTER | workflows/*.lobster | 1.0 | — |
 
 ---
 
