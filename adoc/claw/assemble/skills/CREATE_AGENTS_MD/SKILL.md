@@ -13,18 +13,18 @@ tools:
 ## 输入字段
 
 - `opt.agents[].role` — 角色定位（必填）
+- `opt.agents[].routes[]` — **仅 main**：子 agent 路由规则，每项含 `when`（什么场景）+ `to`（转给哪个 agent id）+ `desc`（可选说明），渲染成 `{{SUBAGENT_ROUTING}}`
 - `opt.agents[].capabilities[]` — 能力清单（含 `access: read|write`、`run`、`skill`），渲染成「能力与工具映射」表
 - `opt.agents[].writeOrder[]` — 写操作依赖顺序，渲染成「创建类依赖顺序，不得跳序」
 - `opt.agents[].dag` — `llm-judge` 型业务流 → 渲染成 Standing Orders 步骤（全命令/确认型不在此，由 xsystem 转成 Lobster 随 `workflows[]` 携带，交 CREATE_WORKFLOW_LOBSTER 落盘）
 - `opt.agents[].redlines[]` — 红线条目
-- main agent：把所有子 agent 列成路由规则 `{{SUBAGENT_ROUTING}}`
 
 ## 渲染步骤
 
 1. 读取 `reference/AGENTS.template.md`
-2. main agent 才填 `{{SUBAGENT_ROUTING}}`，子 agent 留空
-3. `capabilities[]` → `{{CAPABILITY_TABLE}}`（能力 / 类型 / 工具 / 约束 四列）
-4. Standing Orders：read 能力 → 自主执行；write 能力 → Approval gate（先 `--dry-run` + 确认）；`llm-judge` DAG 节点按拓扑序展开为步骤
+2. main agent 才填 `{{SUBAGENT_ROUTING}}`（来自 `routes[]`，逐条列成"遇到 `when` → 转交 `to`：`desc`"）；子 agent 该段留空或写"无下游 agent"
+3. `capabilities[]` → `{{CAPABILITY_TABLE}}`（能力 / 类型 / 工具 / 约束 四列）；无 capabilities 则该表写"本 agent 无业务 CLI 能力"
+4. Standing Orders：read 能力 → 自主执行；write 能力 → Approval gate（先 `--dry-run` + 确认）；`llm-judge` DAG 节点按拓扑序展开为步骤；纯调度型 agent（只有 routes、无 capabilities/dag）Standing Orders 写路由纪律即可
 5. `redlines[]` → `{{RED_LINES}}`；`writeOrder[]` 落入对应 Standing Order
 6. 写入 `<agent_root>AGENTS.md`，即 `~/.openclaw/output/<opt_id>/workspace/<agent_id>/AGENTS.md`（main = `workspace/main/`）
 

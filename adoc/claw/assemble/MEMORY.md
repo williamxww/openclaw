@@ -31,7 +31,8 @@
 | CREATE_OPENCLAW_JSON | openclaw.json | 1.0 | — |
 | CREATE_KB_SKILL | skills/kb-*/SKILL.md | 1.0 | — |
 | CREATE_ONTOLOGY_SKILL | skills/ontology-*/SKILL.md | 1.0 | — |
-| CREATE_PROGRAM_SKILL | skills/*/SKILL.md | 1.0 | — |
+| CREATE_PROGRAM_SKILL | skills/*/SKILL.md（source:inline） | 1.0 | — |
+| CREATE_HUB_SKILL | skills/*/SKILL.md（source:hub，原样落盘） | 1.0 | — |
 | CREATE_CRON_JOBS | cron/jobs.json | 1.0 | — |
 | CREATE_WORKFLOW_LOBSTER | workflows/*.lobster | 1.0 | — |
 

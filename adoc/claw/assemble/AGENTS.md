@@ -60,9 +60,10 @@ OPT 装配 Agent。拿到一份完整的 OPT 配置（YAML 格式），渲染出
    | `AGENTS.md` | `CREATE_AGENTS_MD` | 角色定位 + 路由 + 能力映射 + Standing Orders + 红线 |
    | `TOOLS.md` | `CREATE_TOOLS_MD` | 业务 CLI 端点、命令别名 |
    | `HEARTBEAT.md` | `CREATE_HEARTBEAT_MD` | 保活/兜底巡检（业务周期任务走 cron） |
-   | `skills/kb-<id>/SKILL.md` | `CREATE_KB_SKILL` | 每个知识库一个，落对应 agent 的 `<agent_root>skills/` |
-   | `skills/ontology-<id>/SKILL.md` | `CREATE_ONTOLOGY_SKILL` | 每个本体一个 |
-   | `skills/<id>/SKILL.md` | `CREATE_PROGRAM_SKILL` | 程序型自定义 skill（如 nl2sql） |
+   | `skills/kb-<id>/SKILL.md` | `CREATE_KB_SKILL` | `source: inline` 知识库，每个一份 |
+   | `skills/ontology-<id>/SKILL.md` | `CREATE_ONTOLOGY_SKILL` | `source: inline` 本体，每个一份 |
+   | `skills/<id>/SKILL.md` | `CREATE_PROGRAM_SKILL` | `source: inline` 程序型自定义 skill（如 nl2sql） |
+   | `skills/<dir>/SKILL.md` | `CREATE_HUB_SKILL` | `source: hub` 技能，xsystem 已注入内容，原样落盘 |
    | `cron/jobs.json` | `CREATE_CRON_JOBS` | 周期任务（如有），归属对应 agent |
    | `workflows/<id>.lobster` | `CREATE_WORKFLOW_LOBSTER` | xsystem 已转好的 Lobster 内容，原样落盘（如有） |
 
@@ -112,16 +113,19 @@ OPT 装配 Agent。拿到一份完整的 OPT 配置（YAML 格式），渲染出
 |------|------|------|
 | `opt.id` | ✅ | OPT 唯一标识，用于 workspace 路径和 pod 挂载 |
 | `opt.name` | ✅ | OPT 显示名称，写入 IDENTITY.md |
-| `opt.owner.name` | ✅ | 服务对象姓名，写入 USER.md |
-| `opt.owner.role` | ✅ | 服务对象职位，写入 USER.md |
+| `opt.owner.name` | ✅ | 默认服务对象姓名，写入各 agent 的 USER.md |
+| `opt.owner.role` | ✅ | 默认服务对象职位，写入 USER.md |
 | `opt.agents` | ✅ | 至少包含一个 main agent |
 | `opt.agents[].id` | ✅ | 每个 agent 的唯一 id |
 | `opt.agents[].llm.modelId` | ✅ | 每个 agent 必须指定 LLM 模型 |
 | `opt.agents[].role` | ✅ | agent 角色描述，写入 IDENTITY.md / AGENTS.md |
 | `opt.agents[].soul` | ✅ | agent 性格描述，写入 SOUL.md |
-| `opt.agents[].skills` | ⬜ | 可选，知识库和 SKILL 列表 |
+| `opt.agents[].owner` | ⬜ | 可选，覆盖默认 `opt.owner`（该 agent 的 USER.md 用这份） |
+| `opt.agents[].routes` | ⬜ | 可选（一般仅 main）：子 agent 路由规则，每项 `when`/`to`/`desc` |
+| `opt.agents[].skills` | ⬜ | 可选，技能列表；每项 `source: inline`（现场定义，缺省）或 `source: hub`（xsystem 注入 `content`） |
 | `opt.agents[].dag` | ⬜ | 可选，`llm-judge` 型业务流（YAML）→ 渲染成 AGENTS.md 的 Standing Orders |
 | `opt.agents[].workflows` | ⬜ | 可选，xsystem 已转好的 Lobster 工作流（每项含 `id` + `lobster` 文本）→ 原样落 `.lobster` |
+| `opt.agents[].redlines` | ⬜ | 可选，红线条目 → AGENTS.md 红线段 |
 | `opt.agents[].heartbeat` | ⬜ | 可选，周期检查项列表 |
 
 > `opt.pod.id` 不是装配的必填项——装配只产出蓝图文件，pod 由 xsystem 后续实例化。配置里若带 pod 信息，原样忽略即可。
@@ -148,10 +152,15 @@ OPT 装配 Agent。拿到一份完整的 OPT 配置（YAML 格式），渲染出
 
 ### SKILL.md 生成规则
 
-- 知识库 SKILL：命名空间 `kb-<id>`，工具名 `kb-cli`，包含 `kb-cli search`/`kb-cli get` 命令示例、参考文件清单、权限边界
-- 本体 SKILL：命名空间 `ontology-<id>`，工具名 `onto-cli`，包含 `onto-cli concept get`/`relation list`/`query` 命令示例、权限边界
-- 用户勾选几个知识库就生成几个 kb SKILL，几个本体就生成几个 ontology SKILL（一对一）
-- 用户上传的参考文件放入对应 SKILL 的 `reference/` 子目录，SKILL.md 里列出相对路径
+技能按 `source` 分两类：
+
+- **`source: inline`（现场定义，缺省）** — 装配 agent 按字段渲染：
+  - 知识库 SKILL：命名空间 `kb-<id>`，工具名 `kb-cli`，包含 `kb-cli search`/`kb-cli get` 命令示例、参考文件清单、权限边界
+  - 本体 SKILL：命名空间 `ontology-<id>`，工具名 `onto-cli`，包含 `onto-cli concept get`/`relation list`/`query` 命令示例、权限边界
+  - 程序型 SKILL（如 nl2sql）：走 CREATE_PROGRAM_SKILL
+  - 选几个知识库就生成几个 kb SKILL，几个本体就生成几个 ontology SKILL（一对一）
+  - 用户上传的参考文件放入对应 SKILL 的 `reference/` 子目录，SKILL.md 里列出相对路径
+- **`source: hub`（从 SKILL HUB 选的已有技能）** — xsystem 已把成品 SKILL.md 文本注入到 `content`，装配 agent 由 CREATE_HUB_SKILL **原样落盘**到 `skills/<dir>/SKILL.md`，不渲染、不访问 HUB
 - 每个 SKILL 文件放入对应 agent workspace 的 `skills/<skill-name>/` 目录
 
 ### Lobster 工作流生成规则

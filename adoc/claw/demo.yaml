@@ -2,18 +2,23 @@
 # OPT 配置 — 交给 assemble agent 生成 workspace 蓝图
 # 输入格式 YAML；输出的 openclaw.json 仍是 JSON
 # 蓝图落点：kdx-minio/assemble/<opt.id>/
-#   - 每个 agent（含 main）：workspace/<agent_id>/
-#   - 全局 openclaw.json：openclaw/openclaw.json
+#   - 全局 openclaw.json：<opt.id>/openclaw.json（根下）
+#   - 每个 agent（含 main）：<opt.id>/workspace/<agent_id>/
 # ============================================================
 opt:
   id: hr-demo                     # 唯一标识，决定蓝图路径 <opt_id>/
   name: HR 助手                    # 显示名，写入 IDENTITY.md
 
-  owner:                          # 服务对象，写入 USER.md
+  # ---------- 默认服务对象，写入每个 agent 的 USER.md ----------
+  # 所有 agent 共用这份 owner；个别 agent 可在自己下面写 owner: 覆盖
+  owner:
     name: 张三
     role: HR 专员
     timezone: Asia/Shanghai
     language: zh-CN
+    notes:                        # 可选，写入 USER.md 的 Notes
+      - 偏好先给结论再给依据
+      - 政策类答案必须能说清来源
 
   agents:
 
@@ -29,10 +34,16 @@ opt:
         modelId: qwen3.5-35b
         temperature: 0.3
 
-      # 子 agent 路由规则 → 写进 main 的 AGENTS.md
+      # 子 agent 路由规则 → 写进 main 的 AGENTS.md「子 agent 路由」段
       routes:
         - when: 员工咨询 HR 政策、制度、考勤、薪酬、福利等事实问题
           to: policy-expert
+          desc: 转交政策专家，引用权威条款作答
+
+      # 红线（可选）→ 写进 AGENTS.md「红线」段
+      redlines:
+        - 不替员工做审批决定，涉及审批一律提示联系 HR 管理员
+        - 不杜撰政策答案，政策问题必须路由给 policy-expert
 
     # ========== 子 agent：政策专家 ==========
     - id: policy-expert
@@ -43,12 +54,53 @@ opt:
       llm:
         modelId: qwen3.5-35b
         temperature: 0.1
+
+      # 可选：覆盖默认 owner（本 agent 的 USER.md 用这份）
+      # 政策专家是内部 agent，服务对象其实是 main，而非终端员工
+      owner:
+        name: main agent
+        role: 上游调度 agent（HR 助手主 agent）
+        notes:
+          - 我是被 main 路由调用的内部专家，只回政策事实问题
+          - 召回为空如实说"未找到"，不杜撰
+
+      # skills[] 支持两种来源，用 source 区分：
+      #   source: inline —— 现场定义型，字段全写在 YAML 里，装配时现渲染 SKILL.md（默认）
+      #   source: hub    —— 从 SKILL HUB 选的已有技能，xsystem 已把成品 SKILL.md 文本注入到 content
       skills:
-        - kind: kb                # 知识库 SKILL（kb-cli）
+
+        # —— 现场定义型知识库（装配 agent 按字段渲染 kb-cli SKILL.md）——
+        - source: inline
+          kind: kb
           id: hr-policy
           displayName: HR 政策库
           domain: 员工手册、考勤、薪酬、福利政策
           permission: kb:hr-policy:read
-          referenceFiles:         # 用户上传的参考文件 → skills/kb-hr-policy/reference/
+          referenceFiles:          # 用户上传的参考文件 → skills/kb-hr-policy/reference/
             - reference/员工手册2026.pdf
             - reference/考勤制度.docx
+
+        # —— 从 SKILL HUB 选的已有技能（xsystem 预先注入完整内容，装配 agent 原样落盘）——
+        - source: hub
+          id: doc-summarizer       # HUB 里的技能标识
+          version: "1.3"           # 选定的版本
+          dir: doc-summarizer      # 落点目录名 → skills/doc-summarizer/
+          content: |               # xsystem 从 HUB 取出的完整 SKILL.md 文本，原样写文件
+            ---
+            name: doc-summarizer
+            description: 对长文档做结构化摘要，输出要点清单
+            version: "1.3"
+            tools:
+              - doc-cli
+            ---
+
+            # 文档摘要 Skill
+
+            ## 何时使用
+            - 需要把长文档压缩成要点时
+
+            ## 命令格式
+            ```bash
+            doc-cli summarize --file <path> --max-points 10 --json
+            ```
+          referenceFiles: []       # HUB 技能如自带参考文件，xsystem 一并给出落点清单

@@ -10,7 +10,9 @@ tools:
 
 为 `kind` 既非 `kb` 也非 `ontology` 的自定义能力 skill 渲染 SKILL.md（如 `nl2sql`）。模板见 `reference/program-SKILL.template.md`。
 
-## 输入字段（`opt.agents[].skills[]` 中其他 `kind` 的项）
+## 输入字段（`opt.agents[].skills[]` 中 `source: inline` 且 `kind` 非 kb/ontology 的项）
+
+> 只处理现场定义型（`source: inline`，缺省即 inline）。`source: hub` 的技能由 CREATE_HUB_SKILL 原样落盘，不在此渲染。
 
 - `kind`（如 `nl2sql`）/ `id` / `displayName` / `domain`
 - `tools[]`（依赖的业务 CLI，如 `water-cli`）

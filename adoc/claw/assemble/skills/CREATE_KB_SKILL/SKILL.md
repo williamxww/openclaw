@@ -10,7 +10,9 @@ tools:
 
 用户勾选的每个知识库 → 一个独立 SKILL 文件。模板见 `reference/kb-SKILL.template.md`。
 
-## 输入字段（`opt.agents[].skills[]` 中 `kind: kb` 的项）
+## 输入字段（`opt.agents[].skills[]` 中 `source: inline` 且 `kind: kb` 的项）
+
+> 只处理现场定义型（`source: inline`，缺省即 inline）。`source: hub` 的技能由 CREATE_HUB_SKILL 原样落盘，不在此渲染。
 
 - `id` / `displayName` / `domain`（必填）
 - `permission`（如 `kb:hr-policy:read`）

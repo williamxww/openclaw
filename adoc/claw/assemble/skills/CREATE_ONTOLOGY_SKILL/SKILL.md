@@ -10,7 +10,9 @@ tools:
 
 用户勾选的每个本体 → 一个独立 SKILL 文件。模板见 `reference/ontology-SKILL.template.md`。
 
-## 输入字段（`opt.agents[].skills[]` 中 `kind: ontology` 的项）
+## 输入字段（`opt.agents[].skills[]` 中 `source: inline` 且 `kind: ontology` 的项）
+
+> 只处理现场定义型（`source: inline`，缺省即 inline）。`source: hub` 的技能由 CREATE_HUB_SKILL 原样落盘，不在此渲染。
 
 - `id` / `displayName` / `domain`（必填）
 - `permission`（如 `ontology:hr-leave:read`）
