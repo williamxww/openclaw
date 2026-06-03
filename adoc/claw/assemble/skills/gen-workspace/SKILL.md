@@ -26,15 +26,14 @@ OPT 配置 JSON，结构见 `自动装配.md` 2.2。关键字段：
 
 ## 渲染规则
 
-**先固定路径，再渲染。** 装配开始时只取一次时间戳并固定，整个装配生命周期复用同一个值：
+**先固定路径，再渲染。** 路径由 `opt.id` 唯一决定，装配全程不变：
 
 ```bash
-TS=$(date +%Y%m%d%H%M%S)                       # 只在这里取一次，全程复用
-LOCAL=~/.openclaw/output/<username>/$TS/openclaw
+LOCAL=~/.openclaw/output/<opt_id>/openclaw
 mkdir -p "$LOCAL"
 ```
 
-逐一渲染到本地暂存 `$LOCAL/`（即 `~/.openclaw/output/<username>/<TS>/openclaw/`），再整体写 MinIO。各文件内容来源：
+逐一渲染到本地暂存 `$LOCAL/`（即 `~/.openclaw/output/<opt_id>/openclaw/`），再整体写 MinIO。各文件内容来源：
 
 | 文件 | 内容来源 |
 |------|---------|
@@ -65,21 +64,21 @@ mkdir -p "$LOCAL"
 
 ## 写入 MinIO
 
-整套文件写到 `kdx-minio/assemble/<username>/<TS>/openclaw/`（bucket `assemble` 已预建，直接用），本地与远端结构镜像，保持目录结构。**只用 `mc`，不用 aws s3**：
+整套文件写到 `kdx-minio/assemble/<opt_id>/openclaw/`（bucket `assemble` 已预建，直接用），本地与远端结构镜像，保持目录结构。**只用 `mc`，不用 aws s3**：
 
 ```bash
-# $TS / $LOCAL 沿用渲染阶段固定的值，绝不重新取时间戳
-mc cp --recursive "$LOCAL/" "kdx-minio/assemble/<username>/$TS/openclaw/"
+# $LOCAL 沿用渲染阶段固定的值
+mc cp --recursive "$LOCAL/" "kdx-minio/assemble/<opt_id>/openclaw/"
 ```
 
 逐对象核对返回状态。任一失败立即停止并报告该对象，不留半套蓝图。
 
-> **时间戳只取一次**：`$TS` 在渲染阶段已固定，本地生成与上传全程复用同一个值。绝不在写每个文件时各自调 `date`，否则一套蓝图会散落到多个时间戳目录。
+> 一套蓝图只落一个 `<opt_id>/openclaw/` 前缀，路径由 `opt.id` 唯一决定，本地与远端镜像，整目录上传。
 
 ## 执行纪律
 
 - 渲染全自动，不中途停等人工确认（真人确认前置在 UI 提交环节）
 - 校验失败不生成任何文件；要么整套写成功，要么不写
 - 不打印任何敏感字段；API Key / 密码一律 ENV 占位符
-- 只写本次 `<username>/<TS>/openclaw/` 前缀，绝不碰其他蓝图
+- 只写本次 `<opt_id>/openclaw/` 前缀，绝不碰其他蓝图
 - 写完回流文件清单给 xsystem，本次装配即结束——不挂载 pod

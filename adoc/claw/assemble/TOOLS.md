@@ -21,15 +21,12 @@ agent 拿到一份完整的 OPT 配置 JSON 即据此创建蓝图——**配置 
 
 - mc alias：`kdx-minio`
 - bucket：`assemble`（已预先创建，直接使用，不需新建）
-- 远端前缀：`assemble/<username>/<TS>/openclaw/`
-- `<username>`：发起本次装配的操作员标识（平台经 ENV 注入）
-- `<TS>`：时间戳 `yyyyMMddHHmmss`，**整个装配生命周期只取一次并固定复用**（见下方红线）
+- 远端前缀：`assemble/<opt_id>/openclaw/`
+- `<opt_id>`：本次 OPT 的唯一标识（取自 OPT 配置 JSON 的 `opt.id`）
 
 ```bash
-# 装配开始时只取一次时间戳，之后全程复用，绝不重新取
-TS=$(date +%Y%m%d%H%M%S)
-LOCAL=~/.openclaw/output/<username>/$TS/openclaw
-REMOTE=kdx-minio/assemble/<username>/$TS/openclaw
+LOCAL=~/.openclaw/output/<opt_id>/openclaw
+REMOTE=kdx-minio/assemble/<opt_id>/openclaw
 
 # 整目录上传一套蓝图（本地结构镜像远端）
 mc cp --recursive "$LOCAL/" "$REMOTE/"
@@ -39,7 +36,7 @@ mc cp --recursive "$LOCAL/" "$REMOTE/"
 - MinIO 连接信息（endpoint / access key / secret）由平台经 ENV 注入并已配好 `kdx-minio` alias，不写进任何文件。
 - 写入是装配 agent 对 MinIO 的**唯一写方向**；运行后操作员经 UI 改文件由 xsystem 写 MinIO，不经本 agent。
 
-> **红线：时间戳只取一次。** 装配开始即固定 `$TS`，本地生成、远端上传的所有文件都用同一个 `$TS`。绝不在生成每个文件时各自调 `date`，否则一套蓝图会被打散到多个时间戳目录（如 USER.md 落在 `20260603113015/`、IDENTITY.md 落在 `20260603113020/`）。
+> **红线：一套蓝图只落一个 `<opt_id>/openclaw/` 前缀。** 路径由 `opt.id` 唯一决定，装配全程不变；本地与远端结构镜像，整目录上传。
 
 ## DAG 转换工具
 
@@ -60,10 +57,10 @@ workspace 文件按 `gen-workspace` SKILL 里的规范内联渲染，不依赖�
 
 ## 输出目录
 
-路径由 `<username>` + 单次固定时间戳 `<TS>` 决定，本地与远端结构一致（均带 `openclaw/` 子目录）：
+路径由 `<opt_id>` 决定，本地与远端结构一致（均带 `openclaw/` 子目录）：
 
-- 本地渲染暂存：`~/.openclaw/output/<username>/<TS>/openclaw/`
-- MinIO 蓝图前缀：`kdx-minio/assemble/<username>/<TS>/openclaw/`
+- 本地渲染暂存：`~/.openclaw/output/<opt_id>/openclaw/`
+- MinIO 蓝图前缀：`kdx-minio/assemble/<opt_id>/openclaw/`
 
 > 本地与远端镜像，可直接 `mc cp --recursive` 整目录上传，避免逐文件 cp 时路径漂移。
 
