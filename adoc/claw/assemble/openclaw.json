@@ -41,8 +41,8 @@
   },
 
   "tools": {
-    // assemble-api / dag2lobster 是平台内部工具；mc 是 MinIO 客户端（写蓝图真源）
-    "alsoAllow": ["assemble-api", "dag2lobster", "mc"]
+    // mc 是 MinIO 客户端（写蓝图真源）。DAG→Lobster 已在 xsystem 侧完成，本 agent 不需 dag2lobster
+    "alsoAllow": ["mc"]
   },
 
   "skills": {

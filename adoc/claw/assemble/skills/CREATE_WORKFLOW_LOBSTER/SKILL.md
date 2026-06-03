@@ -1,37 +1,29 @@
 ---
 name: CREATE_WORKFLOW_LOBSTER
-description: 把全命令/确认型 DAG 经 dag2lobster 转换成 workflows/<id>.lobster
+description: 把 OPT 配置里已携带的 Lobster 工作流内容直接落成 workflows/<id>.lobster 文件
 version: "1.0"
 tools:
   - mc
-  - dag2lobster
 ---
 
 # CREATE_WORKFLOW_LOBSTER
 
-把 agent 的 DAG（全为 command/approval/condition 节点）转换成 Lobster 工作流。模板见 `reference/workflow.template.lobster`。
+把 OPT 配置里**已经转换好的** Lobster 工作流内容原样写成 `.lobster` 文件。
 
-> 含 `llm-judge` 节点的 DAG 不在此——那类走 CREATE_AGENTS_MD 渲染成 Standing Orders。
+> DAG → Lobster 的转换与校验已在 xsystem 侧完成，配置 YAML 直接携带完整的 Lobster 文本。本 SKILL **不做任何转换、不调用 `dag2lobster`、不理解 DAG 结构**，只负责落盘。
 
-## 输入字段（`opt.agents[].dag`）
+## 输入字段（`opt.agents[].workflows[]`）
 
-- `id` / `name` / `nodes[]`
-- 节点 `type`: `command` / `approval` / `condition` / `agent-task`
+- 每项含 `id`（工作流标识）+ `lobster`（完整的 Lobster 工作流内容，多行文本）
 
 ## 渲染步骤
 
-1. 先校验：`dag2lobster --validate --input <dag.yaml>`（检查环、孤立节点、缺字段）
-2. 转换：`dag2lobster --input <dag.yaml> --output <flow>.lobster`
-   - `command` → step `{ id, command }`
-   - `approval` → step + `approval: required`
-   - `condition` → step + `condition: $<gate>.approved`
-   - 边 A→B → `B.stdin = $A.stdout`
-   - `agent-task` → `command: agent-invoke --agent <id> --task <label>`
-3. 写入 `<agent_root>workflows/<flow-id>.lobster`，即 `~/.openclaw/output/<opt_id>/workspace/<agent_id>/workflows/<flow-id>.lobster`（main = `workspace/main/`）
-4. 转换后再 `dag2lobster --validate` 二次校验
+1. 对每个 workflow 项，取其 `lobster` 字段内容
+2. 原样写入 `<agent_root>workflows/<id>.lobster`，即 `~/.openclaw/output/<opt_id>/workspace/<agent_id>/workflows/<id>.lobster`（main = `workspace/main/`）
+3. 配置无 `workflows[]` 则不生成此文件
 
 ## 纪律
 
-- 节点 id 保持一致，严格按拓扑排序，不自行决定顺序
-- 校验失败立即停止，返回具体错误节点
+- 内容原样落盘，不增删、不重排、不"优化"步骤
+- 不做语法转换或拓扑排序——那是 xsystem 的职责
 - 仅渲染本文件

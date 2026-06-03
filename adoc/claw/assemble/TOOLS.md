@@ -6,14 +6,14 @@ agent 拿到一份完整的 OPT 配置（YAML 格式）即据此创建蓝图—�
 
 > 选 YAML 而非 JSON：YAML 表达能力更丰富（多行文本、注释、锚点引用），更适合承载 agent 性格/角色描述、Standing Orders 这类长文本字段。
 
-## 平台 API（只读辅助）
+> 配置一次性完整送达，知识库 / SKILL / LLM 模型等信息都已在 YAML 里，**不反查任何接口**。
 
-- 查询知识库列表：`assemble-api list-kb --json`
-- 查询 SKILL 列表：`assemble-api list-skills --json`
-- 查询可用 LLM 模型：`assemble-api list-models --json`
-- 装配任务状态登记/查询：`assemble-api list-tasks ...`（供 HEARTBEAT 补偿检查）
+## 本 agent 用到的工具
 
-> 不再使用 `get-opt-config`（配置直接随请求到达，不反查）、不再使用 `write-workspace` / `mount` / `pod-status`（写入终点是 MinIO，挂载由 xsystem 调其他团队的服务负责，与本 agent 无关）。
+- `mc` — MinIO 客户端，写蓝图真源（唯一写方向）
+
+> 装配 agent 只依赖 `mc`。DAG → Lobster 的转换已在 xsystem 侧完成，配置 YAML 直接携带成品 Lobster 内容，本 agent **不做转换、不调 `dag2lobster`**。
+> 不使用任何 OPT 配置反查接口（配置随请求完整到达）；不使用 `write-workspace` / `mount` / `pod-status`（写入终点是 MinIO，挂载由 xsystem 调其他团队的服务负责，与本 agent 无关）。
 
 ## 写入 MinIO（蓝图真源）
 
@@ -41,14 +41,10 @@ mc cp --recursive "$LOCAL/" "$REMOTE/"
 
 > **红线：一套蓝图只落一个 `<opt_id>/` 前缀。** 路径由 `opt.id` 唯一决定，装配全程不变；前缀下含各 agent（含 main）的 `workspace/<agent_id>/` 与全局 `openclaw/openclaw.json`，本地与远端结构镜像，整目录上传。
 
-## DAG 转换工具
+## 业务流（Lobster）
 
-> `dag2lobster` 是平台自行实现的内部工具，不是 openclaw 原生能力。
-
-- DAG → Lobster 工作流：`dag2lobster --input <dag.yaml> --output <workflow.lobster>`
-- DAG 校验（检查环、孤立节点、缺失字段）：`dag2lobster --validate --input <dag.yaml>`
-
-> DAG 是 OPT 配置（YAML）的一部分，校验/转换时把对应的 DAG 子树取出为 YAML 传给 `dag2lobster`。
+> DAG → Lobster 的转换与校验在 **xsystem 侧**完成，OPT 配置 YAML 直接携带成品 Lobster 文本（`opt.agents[].workflows[].lobster`）。
+> 装配 agent 不做转换、不校验 DAG，只由 `CREATE_WORKFLOW_LOBSTER` 把 Lobster 内容原样落成 `workflows/<id>.lobster` 文件。
 
 ## 文件模板
 

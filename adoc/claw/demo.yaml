@@ -1,104 +1,38 @@
 # ============================================================
 # OPT 配置 — 交给 assemble agent 生成 workspace 蓝图
 # 输入格式 YAML；输出的 openclaw.json 仍是 JSON
-# 蓝图落点：kdx-minio/assemble/<opt.id>/openclaw/
+# 蓝图落点：kdx-minio/assemble/<opt.id>/
+#   - 每个 agent（含 main）：workspace/<agent_id>/
+#   - 全局 openclaw.json：openclaw/openclaw.json
 # ============================================================
 opt:
-  id: hr-zhang-san              # 唯一标识，决定蓝图路径 <opt_id>/openclaw/
-  name: 张三的 HR 助手           # 显示名，写入 IDENTITY.md
+  id: hr-demo                     # 唯一标识，决定蓝图路径 <opt_id>/
+  name: HR 助手                    # 显示名，写入 IDENTITY.md
 
-  owner:                         # 服务对象，写入 USER.md
+  owner:                          # 服务对象，写入 USER.md
     name: 张三
     role: HR 专员
     timezone: Asia/Shanghai
     language: zh-CN
 
-  # ---------- agent 列表：至少一个 main ----------
   agents:
 
-    # ========== 主 agent ==========
+    # ========== 主 agent：只做调度，自己不干具体活 ==========
     - id: main
-      role: HR 助手主 agent，负责接收员工咨询、路由给专家子 agent、处理请假与入离职业务
+      role: HR 助手主 agent。本身不处理具体业务，只负责理解员工意图、按场景把请求路由给合适的子 agent
       soul: |
-        温和、耐心、专业。
-        遇到不确定的问题先问清楚再答，不臆测。
-        涉及审批权限的操作，明确告知员工联系 HR 管理员，不越权尝试。
-        回复用中文，简洁但有温度。
-
+        温和、有条理。
+        先听清楚需求，判断该交给哪个子 agent。
+        自己不杜撰专业答案，政策类问题一律转交 policy-expert。
+        回复用中文，简洁清楚。
       llm:
         modelId: qwen3.5-35b
-        # 可选调参
         temperature: 0.3
-        maxTokens: 4096
 
-      # 勾选的知识库 / 本体 → 一对一生成 SKILL 文件
-      skills:
-        - kind: kb                 # 知识库 SKILL（kb-cli）
-          id: hr-policy
-          displayName: HR 政策库
-          domain: 员工手册、考勤、薪酬、福利政策
-          sampleQuestions:
-            - 年假怎么休
-            - 试用期多久
-          permission: kb:hr-policy:read
-          referenceFiles:          # 用户上传的参考文件，放进 skills/kb-hr-policy/reference/
-            - reference/员工手册2026.pdf
-            - reference/考勤制度.docx
-            - reference/薪酬政策.md
-
-        - kind: ontology            # 本体 SKILL（onto-cli）
-          id: hr-leave
-          displayName: 请假本体
-          domain: 假期类型、适用条件、审批链路的结构化关系
-          permission: ontology:hr-leave:read
-
-      # 周期任务 → cron/jobs.json（非 HEARTBEAT）
-      heartbeat:
-        - text: 检查待我处理的请假审批结果，对每条新结果通知员工并写入 memory
-          schedule: { kind: every, everyMs: 300000 }      # 每 5 分钟
-        - text: 检查今日入职/离职待办，按 Standing Orders 受理
-          schedule: { kind: cron, expr: "0 9 * * 1-5", tz: Asia/Shanghai }
-
-      # 业务流 DAG —— 本例为 llm-judge 型，装配成 AGENTS.md Standing Orders
-      dag:
-        id: company-create-review
-        name: 创建公司的审核流程
-        nodes:
-          - id: review_license
-            type: llm-judge
-            label: 营业资质审核
-            prompt: 阅读营业资质材料，判断是否齐全、有效、主体一致，给出通过/存疑结论和理由
-            input: check_uploaded
-          - id: confirm_license
-            type: approval
-            label: 向办事员反馈资质审核结果并等其确认
-            input: review_license
-          - id: review_finance
-            type: llm-judge
-            label: 财务资料审核
-            prompt: 阅读财务资料，判断是否齐全、真实、口径一致，给出通过/存疑结论和理由
-            input: confirm_license
-            condition: confirm_license.approved
-          - id: confirm_finance
-            type: approval
-            label: 向办事员反馈财务审核结果并等其确认
-            input: review_finance
-
-      # 接入的 MCP server（可选）→ openclaw.json 的 mcp.servers
-      mcp:
-        - name: context7
-          type: stdio
-          command: uvx
-          args: ["context7-mcp"]
-        - name: company-tools
-          type: http
-          url: https://mcp.example.com/mcp
-          headers:
-            Authorization: "Bearer ${MCP_TOKEN}"   # token 用 ENV 占位，不写明文
-
-      # 沙箱（可选）→ openclaw.json 的 agents 配置
-      sandbox:
-        mode: off                  # 纯 CLI + 推理，主 agent 不开沙箱
+      # 子 agent 路由规则 → 写进 main 的 AGENTS.md
+      routes:
+        - when: 员工咨询 HR 政策、制度、考勤、薪酬、福利等事实问题
+          to: policy-expert
 
     # ========== 子 agent：政策专家 ==========
     - id: policy-expert
@@ -110,99 +44,11 @@ opt:
         modelId: qwen3.5-35b
         temperature: 0.1
       skills:
-        - kind: kb
+        - kind: kb                # 知识库 SKILL（kb-cli）
           id: hr-policy
           displayName: HR 政策库
           domain: 员工手册、考勤、薪酬、福利政策
           permission: kb:hr-policy:read
-          referenceFiles:
+          referenceFiles:         # 用户上传的参考文件 → skills/kb-hr-policy/reference/
             - reference/员工手册2026.pdf
             - reference/考勤制度.docx
-
-    # ========== 子 agent：数据专员（数擎，能力驱动型） ==========
-    # 真实蓝图见 adoc/claw/dataagent/。特征：一个业务 CLI 同时承载只读查询
-    # 与写操作；查询自主执行，创建必须 dry-run + 确认；含自定义 nl2sql skill。
-    - id: data-agent
-      role: 数据平台数字员工（数擎），负责数仓 schema/本体/数据查询，以及数据源/采集/稽核/加工任务的创建
-      emoji: 📊                          # → IDENTITY.md
-      avatar: avatars/shuqing.png        # 可选
-      soul: |
-        专业、克制，像靠谱的数据工程师同事。先给结论再给依据。
-        给数字必附口径和来源，不说"大概""差不多"。
-        发现口径风险、性能隐患、脏数据风险，直接指出。
-        只读查询随手做；任何创建/写入/调度类操作，一律先确认再动手。
-      llm:
-        modelId: qwen3.5-35b
-        temperature: 0.2
-
-      # 业务 CLI 声明 → 渲染 TOOLS.md 连接信息 + openclaw.json 工具注册 + SKILL 权限边界
-      # 凭证走 ENV，agent 不感知（见自动装配.md 第三章）
-      tools:
-        - name: water-cli
-          displayName: 数据平台统一命令行
-          env: [WATER_API_ENDPOINT, WATER_OPT_TOKEN]    # 平台注入，不写明文
-          defaultFormat: json
-
-      # 能力清单 → 渲染 AGENTS.md「能力与工具映射」表 + 对应 Standing Orders
-      # access: read = 自主执行；write = 需先 --dry-run 预览 + 用户明确确认（approval gate）
-      capabilities:
-        - id: schema-search
-          access: read
-          desc: 语义搜索本体 + 召回相关表（不知道表名时先用）
-          run: water-cli schema search <关键词> --format json
-        - id: schema-get
-          access: read
-          desc: 查单张表结构（字段/分区/FK），字段口径以此为准
-          run: water-cli schema get <namespace> <table> --format json
-        - id: query-data
-          access: read
-          skill: nl2sql                  # 经 nl2sql skill 把自然语言转 Spark SQL
-          desc: 查数仓数据，自动加 LIMIT，生成的 SQL 必须回显
-          run: water-cli sql exec "<SQL>" --format json
-        - id: create-datasource
-          access: write
-          desc: 创建外部数据源
-          run: water-cli datasource create --spec <file> [--dry-run] --format json
-        - id: create-collect
-          access: write
-          desc: 创建采集任务
-          run: water-cli collect create --spec <file> [--dry-run] --format json
-        - id: create-audit
-          access: write
-          desc: 创建稽核任务
-          run: water-cli audit create --spec <file> [--dry-run] --format json
-        - id: create-pipeline
-          access: write
-          desc: 创建数据加工工作流
-          run: water-cli pipeline create --spec <file> [--dry-run] --format json
-
-      # 写操作依赖顺序 → 渲染进 Standing Orders「创建类依赖顺序，不得跳序」
-      writeOrder: [create-datasource, create-collect, create-audit, create-pipeline]
-
-      # 自定义 skill（非 kb / 非 ontology）→ skills/nl2sql/SKILL.md
-      skills:
-        - kind: nl2sql                   # 程序型 skill，区别于 kb / ontology
-          id: nl2sql
-          displayName: NL2SQL
-          domain: 自然语言转 Spark SQL，经 water-cli 执行只读查询
-          tools: [water-cli]
-          permission: data:warehouse:read
-
-      # 红线 → AGENTS.md「红线（绝对禁止）」段
-      redlines:
-        - 不得对生产数仓直接执行 DDL/DML，写入只能经平台采集/加工任务承载
-        - 不得在未 dry-run、未获用户确认的情况下创建任何数据源/采集/稽核/加工任务
-        - 不得泄露查询结果给当前授权用户以外的对象
-        - 不得对含个人信息/财务等敏感表执行未经确认的查询或操作
-        - 不得在字段口径不明时编造统计结论，先查 schema/本体或问用户
-
-      # 会执行 water-cli 命令、要连数据平台 → 开沙箱
-      sandbox:
-        mode: non-main
-        backend: docker
-        workspaceAccess: rw              # 需写 specs/（spec 文件）、output/（CSV 导出）
-        docker:
-          image: openclaw-sandbox:bookworm-slim
-          network: bridge                # water-cli 需连数据平台 API（非 none）
-          memory: 1g
-          cpus: 2

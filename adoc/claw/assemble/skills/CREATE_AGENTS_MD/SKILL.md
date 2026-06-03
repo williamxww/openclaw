@@ -4,7 +4,6 @@ description: 渲染 agent 的 AGENTS.md（角色定位、子 agent 路由、能�
 version: "1.0"
 tools:
   - mc
-  - dag2lobster
 ---
 
 # CREATE_AGENTS_MD
@@ -16,7 +15,7 @@ tools:
 - `opt.agents[].role` — 角色定位（必填）
 - `opt.agents[].capabilities[]` — 能力清单（含 `access: read|write`、`run`、`skill`），渲染成「能力与工具映射」表
 - `opt.agents[].writeOrder[]` — 写操作依赖顺序，渲染成「创建类依赖顺序，不得跳序」
-- `opt.agents[].dag` — 业务流：含 `llm-judge` 节点 → 渲染成 Standing Orders 步骤；全命令/确认 → 交 CREATE_WORKFLOW_LOBSTER，本文件只写触发条件
+- `opt.agents[].dag` — `llm-judge` 型业务流 → 渲染成 Standing Orders 步骤（全命令/确认型不在此，由 xsystem 转成 Lobster 随 `workflows[]` 携带，交 CREATE_WORKFLOW_LOBSTER 落盘）
 - `opt.agents[].redlines[]` — 红线条目
 - main agent：把所有子 agent 列成路由规则 `{{SUBAGENT_ROUTING}}`
 

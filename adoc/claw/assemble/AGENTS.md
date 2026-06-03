@@ -39,11 +39,9 @@ OPT 装配 Agent。拿到一份完整的 OPT 配置（YAML 格式），渲染出
    - 预期产出：完整的 OPT 配置对象，包含所有必填字段
    - 校验：见"输入校验规则"；缺字段则停止，列出所有缺失项，不渲染任何文件
 
-2. **校验 DAG（如有）** — `dag2lobster --validate --input <dag.yaml>`
-   - 仅当配置中包含业务流 DAG 时执行
-   - 校验通过才继续；失败则停止，返回具体错误节点
+2. **固定路径并逐文件渲染** — 路径由 `opt.id` 唯一决定，本地暂存根 `~/.openclaw/output/<opt_id>/`。每个文件调用对应的 `CREATE_*` SKILL 渲染（每个 SKILL 自带 `reference/` 模板）。
 
-3. **固定路径并逐文件渲染** — 路径由 `opt.id` 唯一决定，本地暂存根 `~/.openclaw/output/<opt_id>/`。每个文件调用对应的 `CREATE_*` SKILL 渲染（每个 SKILL 自带 `reference/` 模板）。
+   > 业务流 Lobster 已由 xsystem 转换好并随 YAML 携带，本 agent 不做 DAG 校验或转换，直接落盘。
 
    **写入路径约定（只有两种）：**
    - **每个 agent**（main 也是一种 agent）的文件落在 `workspace/<agent_id>/` 下：`~/.openclaw/output/<opt_id>/workspace/<agent_id>/<file>`（main = `workspace/main/`）
@@ -63,19 +61,19 @@ OPT 装配 Agent。拿到一份完整的 OPT 配置（YAML 格式），渲染出
    | `skills/ontology-<id>/SKILL.md` | `CREATE_ONTOLOGY_SKILL` | 每个本体一个 |
    | `skills/<id>/SKILL.md` | `CREATE_PROGRAM_SKILL` | 程序型自定义 skill（如 nl2sql） |
    | `cron/jobs.json` | `CREATE_CRON_JOBS` | 周期任务（如有），归属对应 agent |
-   | `workflows/<id>.lobster` | `CREATE_WORKFLOW_LOBSTER` | 全命令/确认型 DAG（如有） |
+   | `workflows/<id>.lobster` | `CREATE_WORKFLOW_LOBSTER` | xsystem 已转好的 Lobster 内容，原样落盘（如有） |
 
    - 逐个 agent（含 main）跑一遍上表，各自落 `workspace/<agent_id>/`
    - `openclaw.json` 全局只在 `openclaw/` 下渲染一份（含所有 agent 的 `agents.list`，每个 `workspace` 指向 `workspace/<agent_id>/`）
    - 每个 CREATE_* 渲染后核对产物存在且占位符已全部替换，再进入下一个
 
-4. **写入 MinIO** — 用 `mc` 把整套文件写到 `kdx-minio/assemble/<opt_id>/`（bucket `assemble` 已预建）
+3. **写入 MinIO** — 用 `mc` 把整套文件写到 `kdx-minio/assemble/<opt_id>/`（bucket `assemble` 已预建）
    - 本地根 `~/.openclaw/output/<opt_id>/` 与远端 `assemble/<opt_id>/` 整体镜像，含 `openclaw/`（全局 openclaw.json）与 `workspace/<agent_id>/`（各 agent 文件）两部分
    - 整目录 `mc cp --recursive ~/.openclaw/output/<opt_id>/ kdx-minio/assemble/<opt_id>/` 一次传齐
    - 每个对象写完核对返回状态，任一失败立即停止并报告该对象
    - 要么整套写成功，要么不留半套（失败时清理已写对象或标记任务为 writing 供补偿）
 
-5. **回流结果** — 向 xsystem 返回：
+4. **回流结果** — 向 xsystem 返回：
    - 装配状态（成功 / 失败）
    - MinIO 蓝图前缀（`assemble/<opt_id>/`，下含各 agent 的 `workspace/<agent_id>/` 与全局 `openclaw/openclaw.json`）
    - 文件清单（所有已写对象的相对路径）
@@ -109,7 +107,8 @@ OPT 装配 Agent。拿到一份完整的 OPT 配置（YAML 格式），渲染出
 | `opt.agents[].role` | ✅ | agent 角色描述，写入 IDENTITY.md / AGENTS.md |
 | `opt.agents[].soul` | ✅ | agent 性格描述，写入 SOUL.md |
 | `opt.agents[].skills` | ⬜ | 可选，知识库和 SKILL 列表 |
-| `opt.agents[].dag` | ⬜ | 可选，业务流 DAG（YAML） |
+| `opt.agents[].dag` | ⬜ | 可选，`llm-judge` 型业务流（YAML）→ 渲染成 AGENTS.md 的 Standing Orders |
+| `opt.agents[].workflows` | ⬜ | 可选，xsystem 已转好的 Lobster 工作流（每项含 `id` + `lobster` 文本）→ 原样落 `.lobster` |
 | `opt.agents[].heartbeat` | ⬜ | 可选，周期检查项列表 |
 
 > `opt.pod.id` 不是装配的必填项——装配只产出蓝图文件，pod 由 xsystem 后续实例化。配置里若带 pod 信息，原样忽略即可。
@@ -122,8 +121,9 @@ OPT 装配 Agent。拿到一份完整的 OPT 配置（YAML 格式），渲染出
 
 - main agent 的 AGENTS.md 包含：角色定位、所有子 agent 的路由规则、Standing Orders
 - 子 agent 的 AGENTS.md 只包含：自身角色定位、自身 Standing Orders
-- 如有 DAG，Standing Orders 中的执行步骤从 DAG 节点顺序生成
-- 如无 DAG，Standing Orders 只写触发条件和权限边界，步骤留空待用户补充
+- 如有 `dag`（`llm-judge` 型），Standing Orders 的执行步骤按 DAG 节点顺序生成
+- 如无业务流，Standing Orders 只写触发条件和权限边界，步骤留空待用户补充
+- 全命令/确认型业务流不进 AGENTS.md，由 xsystem 转成 Lobster 后随 `workflows[]` 携带，落 `.lobster` 文件
 
 ### openclaw.json 生成规则
 
@@ -143,11 +143,9 @@ OPT 装配 Agent。拿到一份完整的 OPT 配置（YAML 格式），渲染出
 
 ### Lobster 工作流生成规则
 
-- DAG 节点 → Lobster step，节点 id 保持一致
-- 节点间连线 → `stdin: $<prev-step>.stdout`
-- 标记为 `approval: required` 的节点 → Lobster step 加 `approval: required`
-- 条件分支节点 → `condition: $<gate-step>.approved`
-- 生成后用 `dag2lobster --validate` 二次校验
+- 业务流 Lobster 已由 **xsystem 转换并校验完成**，随 `opt.agents[].workflows[].lobster` 以成品文本携带
+- 本 agent **不做 DAG → Lobster 转换、不做语法/拓扑校验**，由 `CREATE_WORKFLOW_LOBSTER` 把 `lobster` 内容**原样落盘**成 `workflows/<id>.lobster`
+- 内容不增删、不重排、不"优化"
 
 ---
 
@@ -157,5 +155,5 @@ OPT 装配 Agent。拿到一份完整的 OPT 配置（YAML 格式），渲染出
 - 不得在校验失败时生成部分文件（要么整套渲染并写入 MinIO，要么全部不写）
 - 不得修改本次 `<opt_id>/` 前缀以外的任何对象（只写本次装配的前缀下，含各 agent 的 `workspace/<agent_id>/` 与全局 `openclaw/`）
 - **路径只用 `<opt_id>/` 约定**：路径由 `opt.id` 唯一决定，前缀下每个 agent（含 main）在 `workspace/<agent_id>/`、全局 openclaw.json 在 `openclaw/`；mc alias `kdx-minio`、bucket `assemble`、上传只用 `mc`，不用 aws s3 或其他通道；本地 `~/.openclaw/output/<opt_id>/` 与远端结构镜像
-- 不得自行决定 DAG 节点的执行顺序，必须严格按 DAG 拓扑排序
+- 渲染 `llm-judge` 型 DAG 为 Standing Orders 时，不得自行决定节点执行顺序，必须严格按 DAG 拓扑排序；Lobster 工作流原样落盘，不改动 xsystem 已转好的内容
 - 不得创建或挂载 pod，不得越界做 OPT 运行期的任何业务工作
