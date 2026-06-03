@@ -2,7 +2,9 @@
 
 ## 配置来源
 
-agent 拿到一份完整的 OPT 配置 JSON 即据此创建蓝图——**配置 JSON 直接解析，不通过 API 反查**。无论 OPT JSON 从哪个通道送达，处理方式一致：解析内容、渲染文件、写 MinIO。
+agent 拿到一份完整的 OPT 配置（YAML 格式）即据此创建蓝图——**配置直接解析，不通过 API 反查**。无论 OPT 配置从哪个通道送达，处理方式一致：解析内容、渲染文件、写 MinIO。
+
+> 选 YAML 而非 JSON：YAML 表达能力更丰富（多行文本、注释、锚点引用），更适合承载 agent 性格/角色描述、Standing Orders 这类长文本字段。
 
 ## 平台 API（只读辅助）
 
@@ -22,7 +24,7 @@ agent 拿到一份完整的 OPT 配置 JSON 即据此创建蓝图——**配置 
 - mc alias：`kdx-minio`
 - bucket：`assemble`（已预先创建，直接使用，不需新建）
 - 远端前缀：`assemble/<opt_id>/openclaw/`
-- `<opt_id>`：本次 OPT 的唯一标识（取自 OPT 配置 JSON 的 `opt.id`）
+- `<opt_id>`：本次 OPT 的唯一标识（取自 OPT 配置的 `opt.id`）
 
 ```bash
 LOCAL=~/.openclaw/output/<opt_id>/openclaw
@@ -42,8 +44,10 @@ mc cp --recursive "$LOCAL/" "$REMOTE/"
 
 > `dag2lobster` 是平台自行实现的内部工具，不是 openclaw 原生能力。
 
-- DAG JSON → Lobster 工作流：`dag2lobster --input <dag.json> --output <workflow.lobster>`
-- DAG 校验（检查环、孤立节点、缺失字段）：`dag2lobster --validate --input <dag.json>`
+- DAG → Lobster 工作流：`dag2lobster --input <dag.yaml> --output <workflow.lobster>`
+- DAG 校验（检查环、孤立节点、缺失字段）：`dag2lobster --validate --input <dag.yaml>`
+
+> DAG 是 OPT 配置（YAML）的一部分，校验/转换时把对应的 DAG 子树取出为 YAML 传给 `dag2lobster`。
 
 ## 文件模板
 

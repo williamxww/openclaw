@@ -1,6 +1,6 @@
 ---
 name: gen-workspace
-description: 把 OPT 配置 JSON 渲染成一套 workspace markdown 文件，并直接写入 MinIO 蓝图
+description: 把 OPT 配置（YAML）渲染成一套 workspace markdown 文件，并直接写入 MinIO 蓝图
 version: "1.0"
 metadata: { "openclaw": { "requires": { "bins": ["mc", "dag2lobster"] } } }
 tools:
@@ -10,19 +10,21 @@ tools:
 
 # 生成 workspace 蓝图
 
-装配 Agent 的核心能力 SKILL。输入是一份完整的 OPT 配置 JSON，输出是一套写入 MinIO 的 workspace markdown 文件——**一套文件 = 一个 OPT 蓝图**。配置 JSON 从哪个通道送达不影响处理。
+装配 Agent 的核心能力 SKILL。输入是一份完整的 OPT 配置（YAML 格式），输出是一套写入 MinIO 的 workspace markdown 文件——**一套文件 = 一个 OPT 蓝图**。配置从哪个通道送达不影响处理。
 
 ## 何时使用
 
-- 拿到一份"创建 OPT" / "更新 OPT"的 OPT 配置 JSON 时
+- 拿到一份"创建 OPT" / "更新 OPT"的 OPT 配置（YAML）时
 - 不用于：pod 挂载、业务执行、知识库内容维护（均不在装配 agent 职责内）
 
 ## 输入
 
-OPT 配置 JSON，结构见 `自动装配.md` 2.2。关键字段：
+OPT 配置（YAML），结构见 `自动装配.md` 2.2。关键字段：
 
 - `opt.id` / `opt.name` / `opt.owner.{name,role,timezone,language}`
 - `opt.agents[]`：每个含 `id` / `role` / `soul` / `llm.modelId` / `skills[]` / `heartbeat[]` / `dag`
+
+> 输入是 YAML（表达能力强、适合长文本字段）；输出的 `openclaw.json` 仍是 JSON（openclaw 运行时读取的 workspace 配置文件，格式不变）。
 
 ## 渲染规则
 

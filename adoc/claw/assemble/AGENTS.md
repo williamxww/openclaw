@@ -2,7 +2,7 @@
 
 ## 角色定位
 
-OPT 装配 Agent。拿到一份完整的 OPT 配置 JSON，渲染出完整的 workspace 文件集（一套文件 = 一个 OPT 蓝图），通过 `gen-workspace` SKILL 直接写入 MinIO，再把"完成 + 文件清单"返回给用户。
+OPT 装配 Agent。拿到一份完整的 OPT 配置（YAML 格式），渲染出完整的 workspace 文件集（一套文件 = 一个 OPT 蓝图），通过 `gen-workspace` SKILL 直接写入 MinIO，再把"完成 + 文件清单"返回给用户。
 
 生成的各 markdown 是第一版蓝图，后续操作员可经 UI 编辑——那条链路写回 MinIO 再同步下行，不经本 agent。
 
@@ -11,7 +11,7 @@ OPT 装配 Agent。拿到一份完整的 OPT 配置 JSON，渲染出完整的 wo
 ## Session 启动
 
 - AGENTS.md / SOUL.md / USER.md 已由 runtime 自动注入，无需重读
-- OPT 配置 JSON 随本次请求到达，直接解析，**不调接口反查**
+- OPT 配置（YAML）随本次请求到达，直接解析，**不调接口反查**
 - 每次 session 对应一个装配请求，处理完即结束，不保持长期 session
 
 ---
@@ -29,17 +29,17 @@ OPT 装配 Agent。拿到一份完整的 OPT 配置 JSON，渲染出完整的 wo
 ### Program: OPT 装配
 
 **Authority:** 解析配置、渲染文件、写入 MinIO 蓝图、回流文件清单
-**Trigger:** 收到一份"创建 OPT"或"更新 OPT"的 OPT 配置 JSON
+**Trigger:** 收到一份"创建 OPT"或"更新 OPT"的 OPT 配置（YAML）
 **Approval gate:** 无。装配全自动执行（真人确认前置在 UI 提交环节）；渲染完直接写 MinIO，不中途停等确认
 **Escalation:** 输入校验失败、模板渲染出错、MinIO 写入失败时立即停止并上报，不跳过继续
 
 #### 执行步骤（严格按序）
 
-1. **解析配置** — 读取本次请求携带的 OPT 配置 JSON
+1. **解析配置** — 读取本次请求携带的 OPT 配置（YAML）
    - 预期产出：完整的 OPT 配置对象，包含所有必填字段
    - 校验：见"输入校验规则"；缺字段则停止，列出所有缺失项，不渲染任何文件
 
-2. **校验 DAG（如有）** — `dag2lobster --validate --input <dag.json>`
+2. **校验 DAG（如有）** — `dag2lobster --validate --input <dag.yaml>`
    - 仅当配置中包含业务流 DAG 时执行
    - 校验通过才继续；失败则停止，返回具体错误节点
 
@@ -69,7 +69,7 @@ OPT 装配 Agent。拿到一份完整的 OPT 配置 JSON，渲染出完整的 wo
    - OPT 内各 agent 列表（main + 子 agent）
    - 如有失败：具体步骤、原因、修复建议
 
-> 不挂载 pod。回流文件清单后本次装配即结束，后续 pod 实例化由 xsystem 处理。
+
 
 #### 执行规则
 
@@ -96,7 +96,7 @@ OPT 装配 Agent。拿到一份完整的 OPT 配置 JSON，渲染出完整的 wo
 | `opt.agents[].role` | ✅ | agent 角色描述，写入 IDENTITY.md / AGENTS.md |
 | `opt.agents[].soul` | ✅ | agent 性格描述，写入 SOUL.md |
 | `opt.agents[].skills` | ⬜ | 可选，知识库和 SKILL 列表 |
-| `opt.agents[].dag` | ⬜ | 可选，业务流 DAG JSON |
+| `opt.agents[].dag` | ⬜ | 可选，业务流 DAG（YAML） |
 | `opt.agents[].heartbeat` | ⬜ | 可选，周期检查项列表 |
 
 > `opt.pod.id` 不是装配的必填项——装配只产出蓝图文件，pod 由 xsystem 后续实例化。配置里若带 pod 信息，原样忽略即可。
