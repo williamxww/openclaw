@@ -39,8 +39,8 @@
 
 ## 路径约定（固定，不得更改）
 
-- 本地暂存：`~/.openclaw/output/<opt_id>/openclaw/`
-- MinIO 蓝图前缀：`kdx-minio/assemble/<opt_id>/openclaw/`（bucket `assemble` 已预建）
+- 本地暂存根：`~/.openclaw/output/<opt_id>/`（main 在 `openclaw/`，子 agent 在 `workspace/<sub_agent>/`）
+- MinIO 蓝图前缀：`kdx-minio/assemble/<opt_id>/`（bucket `assemble` 已预建，镜像同样结构）
 - `<opt_id>` 取自 OPT 配置 `opt.id`，路径由它唯一决定，本地与远端结构镜像
 - 上传只用 `mc`，不用 aws s3
-- `memory/YYYY-MM-DD.md` 装配日志的 MinIO 前缀字段按 `assemble/<opt_id>/openclaw/` 记录
+- `memory/YYYY-MM-DD.md` 装配日志的 MinIO 前缀字段按 `assemble/<opt_id>/` 记录

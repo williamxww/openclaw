@@ -43,7 +43,12 @@ OPT 装配 Agent。拿到一份完整的 OPT 配置（YAML 格式），渲染出
    - 仅当配置中包含业务流 DAG 时执行
    - 校验通过才继续；失败则停止，返回具体错误节点
 
-3. **固定路径并逐文件渲染** — 路径由 `opt.id` 唯一决定，本地暂存 `~/.openclaw/output/<opt_id>/openclaw/`。每个文件调用对应的 `CREATE_*` SKILL 渲染（每个 SKILL 自带 `reference/` 模板）：
+3. **固定路径并逐文件渲染** — 路径由 `opt.id` 唯一决定，本地暂存根 `~/.openclaw/output/<opt_id>/`（main 在 `openclaw/`，子 agent 在 `workspace/<sub_agent>/`）。每个文件调用对应的 `CREATE_*` SKILL 渲染（每个 SKILL 自带 `reference/` 模板）。
+
+   **写入路径约定（main 与子 agent 分开）：**
+   - **main agent** 的文件落在 `openclaw/` 下：`~/.openclaw/output/<opt_id>/openclaw/<file>`
+   - **子 agent** 的文件落在与 `openclaw/` 同级的 `workspace/<sub_agent>/` 下：`~/.openclaw/output/<opt_id>/workspace/<sub_agent>/<file>`
+   - 下文统一记为 `<agent_root>`：main = `…/<opt_id>/openclaw/`，子 agent = `…/<opt_id>/workspace/<sub_agent>/`
 
    | 产物 | 调用 SKILL | 说明 |
    |------|-----------|------|
@@ -53,24 +58,26 @@ OPT 装配 Agent。拿到一份完整的 OPT 配置（YAML 格式），渲染出
    | `AGENTS.md` | `CREATE_AGENTS_MD` | 角色定位 + 路由 + 能力映射 + Standing Orders + 红线 |
    | `TOOLS.md` | `CREATE_TOOLS_MD` | 业务 CLI 端点、命令别名 |
    | `HEARTBEAT.md` | `CREATE_HEARTBEAT_MD` | 保活/兜底巡检（业务周期任务走 cron） |
-   | `openclaw.json` | `CREATE_OPENCLAW_JSON` | 运行时配置（输出仍是 JSON） |
-   | `skills/kb-<id>/SKILL.md` | `CREATE_KB_SKILL` | 每个知识库一个 |
+   | `openclaw.json` | `CREATE_OPENCLAW_JSON` | 运行时配置（输出仍是 JSON），仅 workspace 根一份 |
+   | `skills/kb-<id>/SKILL.md` | `CREATE_KB_SKILL` | 每个知识库一个，落对应 agent 的 `<agent_root>skills/` |
    | `skills/ontology-<id>/SKILL.md` | `CREATE_ONTOLOGY_SKILL` | 每个本体一个 |
    | `skills/<id>/SKILL.md` | `CREATE_PROGRAM_SKILL` | 程序型自定义 skill（如 nl2sql） |
-   | `cron/jobs.json` | `CREATE_CRON_JOBS` | 周期任务（如有） |
+   | `cron/jobs.json` | `CREATE_CRON_JOBS` | 周期任务（如有），归属对应 agent |
    | `workflows/<id>.lobster` | `CREATE_WORKFLOW_LOBSTER` | 全命令/确认型 DAG（如有） |
 
-   - 多 agent 场景：main 写顶层 workspace，子 agent 写各自子目录，逐个 agent 跑一遍上表
+   - 多 agent 场景：逐个 agent 跑一遍上表，main 写 `openclaw/`，子 agent 写 `workspace/<sub_agent>/`（与 `openclaw/` 同级）
+   - `openclaw.json` 全局只在 `openclaw/` 下渲染一份（含 main + 所有子 agent 的 `agents.list`）
    - 每个 CREATE_* 渲染后核对产物存在且占位符已全部替换，再进入下一个
 
-4. **写入 MinIO** — 用 `mc` 把整套文件写到 `kdx-minio/assemble/<opt_id>/openclaw/`（bucket `assemble` 已预建）
-   - 本地与远端结构镜像，整目录 `mc cp --recursive` 上传
+4. **写入 MinIO** — 用 `mc` 把整套文件写到 `kdx-minio/assemble/<opt_id>/`（bucket `assemble` 已预建）
+   - 本地根 `~/.openclaw/output/<opt_id>/` 与远端 `assemble/<opt_id>/` 整体镜像，含 `openclaw/`（main）与 `workspace/<sub_agent>/`（子 agent）两部分
+   - 整目录 `mc cp --recursive ~/.openclaw/output/<opt_id>/ kdx-minio/assemble/<opt_id>/` 一次传齐，避免漏掉 `openclaw/` 之外的子 agent 文件
    - 每个对象写完核对返回状态，任一失败立即停止并报告该对象
    - 要么整套写成功，要么不留半套（失败时清理已写对象或标记任务为 writing 供补偿）
 
 5. **回流结果** — 向 xsystem 返回：
    - 装配状态（成功 / 失败）
-   - MinIO 蓝图前缀（`assemble/<opt_id>/openclaw/`）
+   - MinIO 蓝图前缀（`assemble/<opt_id>/`，下含 `openclaw/` 与 `workspace/<sub_agent>/`）
    - 文件清单（所有已写对象的相对路径）
    - OPT 内各 agent 列表（main + 子 agent）
    - 如有失败：具体步骤、原因、修复建议
@@ -120,7 +127,7 @@ OPT 装配 Agent。拿到一份完整的 OPT 配置（YAML 格式），渲染出
 
 ### openclaw.json 生成规则
 
-- `agents.list` 包含 main + 所有子 agent，每个 agent 指定独立 workspace 路径
+- `agents.list` 包含 main + 所有子 agent，每个 agent 指定独立 workspace 路径：main = workspace 根（`./`），子 agent = `workspace/<sub_agent>/`
 - `agents.defaults.skipBootstrap: true`（数字员工场景跳过对话式初始化）
 - `executionContract: "strict-agentic"` 对所有 agent 默认开启
 - LLM 配置写入 `models.providers`，API Key 字段值写为占位符 `"$ENV:PROVIDER_API_KEY"`，不写明文
@@ -148,7 +155,7 @@ OPT 装配 Agent。拿到一份完整的 OPT 配置（YAML 格式），渲染出
 
 - 不得在任何输出中打印 LLM API Key、数据库密码等敏感字段（一律写成 ENV 占位符）
 - 不得在校验失败时生成部分文件（要么整套渲染并写入 MinIO，要么全部不写）
-- 不得修改本次 `<opt_id>/openclaw/` 前缀以外的任何对象（只写本次装配的前缀下）
-- **路径只用 `<opt_id>/openclaw/` 约定**：路径由 `opt.id` 唯一决定，mc alias `kdx-minio`、bucket `assemble`、上传只用 `mc`，不用 aws s3 或其他通道；本地 `~/.openclaw/output/<opt_id>/openclaw/` 与远端结构镜像
+- 不得修改本次 `<opt_id>/` 前缀以外的任何对象（只写本次装配的前缀下，含 `openclaw/` 与 `workspace/<sub_agent>/`）
+- **路径只用 `<opt_id>/` 约定**：路径由 `opt.id` 唯一决定，前缀下 main 在 `openclaw/`、子 agent 在 `workspace/<sub_agent>/`；mc alias `kdx-minio`、bucket `assemble`、上传只用 `mc`，不用 aws s3 或其他通道；本地 `~/.openclaw/output/<opt_id>/` 与远端结构镜像
 - 不得自行决定 DAG 节点的执行顺序，必须严格按 DAG 拓扑排序
 - 不得创建或挂载 pod，不得越界做 OPT 运行期的任何业务工作

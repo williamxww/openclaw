@@ -26,7 +26,7 @@ tools:
 1. 读取 `reference/openclaw.template.json`
 2. 填充 `{{AGENT_LIST}}` `{{MODEL_PROVIDERS}}` `{{TOOLS_ALLOW}}` `{{SKILL_ENTRIES}}` `{{MCP_SERVERS}}`
 3. `agents.defaults.skipBootstrap: true`、`executionContract: "strict-agentic"` 对所有 agent 默认开启
-4. 写入 `~/.openclaw/output/<opt_id>/openclaw/openclaw.json`
+4. 写入 workspace 根 `~/.openclaw/output/<opt_id>/openclaw/openclaw.json`（全局唯一，含 main + 所有子 agent 的 `agents.list`，子 agent 的 `workspace` 指向 `workspace/<sub_agent>/`）
 5. 校验是合法 JSON（无尾逗号、占位符已全部替换）
 
 ## 纪律

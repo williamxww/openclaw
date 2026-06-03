@@ -21,7 +21,9 @@ tools:
 
 1. 读取 `reference/jobs.template.json`
 2. 每个周期项 → 一条 job：分配 `id`、填 `schedule`、`sessionTarget: "main"`、`agentId`、`payload.kind: "systemEvent"`、`payload.text`
-3. 写入 `~/.openclaw/output/<opt_id>/openclaw/cron/jobs.json`
+3. 写入 `<agent_root>cron/jobs.json`
+   - main agent：`~/.openclaw/output/<opt_id>/openclaw/cron/jobs.json`
+   - 子 agent：`~/.openclaw/output/<opt_id>/workspace/<sub_agent>/cron/jobs.json`
 4. 无周期任务则不生成此文件
 5. 校验是合法 JSON
 

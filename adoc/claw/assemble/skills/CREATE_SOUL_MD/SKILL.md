@@ -18,7 +18,9 @@ tools:
 
 1. 读取 `reference/SOUL.template.md`
 2. 从 `soul` 提炼：核心气质 → `{{CORE_TRAITS}}`、边界 → `{{BOUNDARIES}}`、一句 Vibe → `{{VIBE_PARAGRAPH}}`
-3. 写入 `~/.openclaw/output/<opt_id>/openclaw/SOUL.md`（子 agent 写各自子目录）
+3. 写入 `<agent_root>SOUL.md`
+   - main agent：`~/.openclaw/output/<opt_id>/openclaw/SOUL.md`
+   - 子 agent：`~/.openclaw/output/<opt_id>/workspace/<sub_agent>/SOUL.md`
 
 ## 纪律
 

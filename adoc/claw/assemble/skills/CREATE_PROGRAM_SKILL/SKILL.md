@@ -21,7 +21,9 @@ tools:
 1. 读取 `reference/program-SKILL.template.md`
 2. 替换 `{{SKILL_ID}}` `{{SKILL_DISPLAY_NAME}}` `{{SKILL_DOMAIN}}` `{{SKILL_TOOLS}}` `{{SKILL_PERMISSION}}`
 3. 按能力补充"何时使用 / 执行流程 / 执行纪律"——这些来自该 agent 的 capabilities 与红线
-4. 写入 `~/.openclaw/output/<opt_id>/openclaw/skills/<id>/SKILL.md`
+4. 写入 `<agent_root>skills/<id>/SKILL.md`
+   - main agent：`~/.openclaw/output/<opt_id>/openclaw/skills/<id>/SKILL.md`
+   - 子 agent：`~/.openclaw/output/<opt_id>/workspace/<sub_agent>/skills/<id>/SKILL.md`
 
 ## 纪律
 

@@ -21,7 +21,9 @@ tools:
 
 1. 读取 `reference/IDENTITY.template.md`
 2. 用配置字段替换占位符：`{{NAME}}` `{{ROLE}}` `{{VIBE}}` `{{EMOJI}}` `{{AVATAR}}` `{{SCOPE_DO}}` `{{SCOPE_DONT}}`
-3. 写入本地暂存 `~/.openclaw/output/<opt_id>/openclaw/IDENTITY.md`（子 agent 写各自 workspace 子目录）
+3. 写入 `<agent_root>IDENTITY.md`
+   - main agent：`~/.openclaw/output/<opt_id>/openclaw/IDENTITY.md`
+   - 子 agent：`~/.openclaw/output/<opt_id>/workspace/<sub_agent>/IDENTITY.md`
 
 ## 纪律
 
