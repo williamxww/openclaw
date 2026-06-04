@@ -58,7 +58,6 @@
       "CREATE_KB_SKILL": { "enabled": true },
       "CREATE_ONTOLOGY_SKILL": { "enabled": true },
       "CREATE_PROGRAM_SKILL": { "enabled": true },
-      "CREATE_HUB_SKILL": { "enabled": true },
       "CREATE_CRON_JOBS": { "enabled": true },
       "CREATE_WORKFLOW_LOBSTER": { "enabled": true }
     }

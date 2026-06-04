@@ -12,7 +12,7 @@ tools:
 
 ## 输入字段（`opt.agents[].skills[]` 中 `source: inline` 且 `kind` 非 kb/ontology 的项）
 
-> 只处理现场定义型（`source: inline`，缺省即 inline）。`source: hub` 的技能由 CREATE_HUB_SKILL 原样落盘，不在此渲染。
+> 只处理现场生成型（`source: inline`，缺省即 inline）。`source: prebuilt` 的技能 SKILL.md 已由程序上传，assemble 不落盘、不在此渲染。
 
 - `kind`（如 `nl2sql`）/ `id` / `displayName` / `domain`
 - `tools[]`（依赖的业务 CLI，如 `water-cli`）

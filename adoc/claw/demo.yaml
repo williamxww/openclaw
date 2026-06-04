@@ -70,13 +70,12 @@ opt:
           - 我是被 main 路由调用的内部专家，只回政策事实问题
           - 召回为空如实说"未找到"，不杜撰
 
-      # skills[] 支持三种来源，用 source 区分：
-      #   source: inline   —— 现场定义型，字段全写在 YAML 里，装配时现渲染 SKILL.md（默认）
-      #   source: hub      —— 从 SKILL HUB 选的已有技能，xsystem 已把成品 SKILL.md 文本注入到 content
-      #   source: prebuilt —— 程序已把 SKILL.md 传到 skills/<dir>/，assemble 不落盘，只用 usage 描述场景
+      # skills[] 支持两种来源，用 source 区分：
+      #   source: inline   —— 现场生成型，字段全写在 YAML 里，装配时现渲染 SKILL.md（默认）
+      #   source: prebuilt —— 提前预制型，程序已把 SKILL.md 传到 skills/<dir>/，assemble 不落盘，只用 usage 描述场景
       skills:
 
-        # —— 现场定义型知识库（装配 agent 按字段渲染 kb-cli SKILL.md）——
+        # —— 现场生成型知识库（装配 agent 按字段渲染 kb-cli SKILL.md）——
         - source: inline
           kind: kb
           id: hr-policy
@@ -87,33 +86,8 @@ opt:
             - reference/员工手册2026.pdf
             - reference/考勤制度.docx
 
-        # —— 从 SKILL HUB 选的已有技能（xsystem 预先注入完整内容，装配 agent 原样落盘）——
-        - source: hub
-          id: doc-summarizer       # HUB 里的技能标识
-          version: "1.3"           # 选定的版本
-          dir: doc-summarizer      # 落点目录名 → skills/doc-summarizer/
-          content: |               # xsystem 从 HUB 取出的完整 SKILL.md 文本，原样写文件
-            ---
-            name: doc-summarizer
-            description: 对长文档做结构化摘要，输出要点清单
-            version: "1.3"
-            tools:
-              - doc-cli
-            ---
-
-            # 文档摘要 Skill
-
-            ## 何时使用
-            - 需要把长文档压缩成要点时
-
-            ## 命令格式
-            ```bash
-            doc-cli summarize --file <path> --max-points 10 --json
-            ```
-          referenceFiles: []       # HUB 技能如自带参考文件，xsystem 一并给出落点清单
-
-        # —— 程序预生成、已上传的已有技能（SKILL.md 已在 MinIO，assemble 不落盘）——
-        # 与 hub 的区别：不带 content（文件已在 MinIO），但必须带 usage——
+        # —— 提前预制型已有技能（SKILL.md 已在 MinIO，assemble 不落盘）——
+        # 不带 content（文件已在 MinIO），但必须带 usage——
         # assemble 看不到 SKILL.md 内容，只能靠 usage 知道「什么场景该用这个 SKILL」，
         # 据此写 main 的路由描述 / 本 agent AGENTS.md 能力表的「何时使用」。
         - source: prebuilt

@@ -1,1 +1,0 @@
-{{HUB_SKILL_CONTENT}}

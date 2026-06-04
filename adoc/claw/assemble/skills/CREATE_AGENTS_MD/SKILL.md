@@ -15,7 +15,7 @@ tools:
 - `opt.agents[].role` — 角色定位（必填）
 - `opt.agents[].routes[]` — **仅 main**：子 agent 路由规则，每项含 `when`（什么场景）+ `to`（转给哪个 agent id）+ `desc`（可选说明），渲染成 `{{SUBAGENT_ROUTING}}`
 - `opt.agents[].capabilities[]` — 能力清单（含 `access: read|write`、`run`、`skill`），渲染成「能力与工具映射」表
-- `opt.agents[].skills[]` — 技能列表；其中带 `usage[]`（典型 `source: prebuilt`、也可能是 hub/inline）的项，把 `usage` 当「何时使用」场景：
+- `opt.agents[].skills[]` — 技能列表；其中带 `usage[]`（`source: prebuilt` 必带，inline 也可有）的项，把 `usage` 当「何时使用」场景：
   - 该 skill 属 main 可路由的下游能力 → 并入 `{{SUBAGENT_ROUTING}}` 的 `when` 描述
   - 否则并入本 agent 「能力与工具映射」表的约束/何时使用列
   - `source: prebuilt` 项 assemble 不落盘 SKILL.md，但**必须**在此体现其 `usage`，否则该已传技能在蓝图里没有任何场景说明

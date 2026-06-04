@@ -64,7 +64,6 @@ OPT 装配 Agent。拿到一份完整的 OPT 配置（YAML 格式），渲染出
    | `skills/kb-<id>/SKILL.md` | `CREATE_KB_SKILL` | `source: inline` 知识库，每个一份 |
    | `skills/ontology-<id>/SKILL.md` | `CREATE_ONTOLOGY_SKILL` | `source: inline` 本体，每个一份 |
    | `skills/<id>/SKILL.md` | `CREATE_PROGRAM_SKILL` | `source: inline` 程序型自定义 skill（如 nl2sql） |
-   | `skills/<dir>/SKILL.md` | `CREATE_HUB_SKILL` | `source: hub` 技能，xsystem 已注入内容，原样落盘 |
    | （不落盘） | — | `source: prebuilt` 技能：SKILL.md 已由程序传到 `skills/<dir>/`，本 agent **不生成**，仅把其 `usage` 喂给 `CREATE_AGENTS_MD` 写进路由/能力表 |
    | `cron/jobs.json` | `CREATE_CRON_JOBS` | 周期任务（如有），归属对应 agent |
    | `workflows/<id>.lobster` | `CREATE_WORKFLOW_LOBSTER` | xsystem 已转好的 Lobster 内容，原样落盘（如有） |
@@ -125,7 +124,7 @@ OPT 装配 Agent。拿到一份完整的 OPT 配置（YAML 格式），渲染出
 | `opt.agents[].owner` | ⬜ | 可选，覆盖默认 `opt.owner`（该 agent 的 USER.md 用这份） |
 | `opt.agents[].routes` | ⬜ | 可选（一般仅 main）：子 agent 路由规则，每项 `when`/`to`/`desc` |
 | `opt.prebuilt` | ⬜ | 可选，程序预生成并已上传到 `assemble/<opt_id>/` 的文件声明（如 `openclawJson: true`）；声明项 assemble 跳过不渲染、不覆盖 |
-| `opt.agents[].skills` | ⬜ | 可选，技能列表；每项 `source: inline`（现场定义，缺省）/ `source: hub`（xsystem 注入 `content`）/ `source: prebuilt`（已上传，assemble 不落盘，需带 `usage`） |
+| `opt.agents[].skills` | ⬜ | 可选，技能列表；每项 `source: inline`（现场生成，缺省，assemble 渲染 SKILL.md）或 `source: prebuilt`（提前预制，已上传，assemble 不落盘，需带 `usage`） |
 | `opt.agents[].dag` | ⬜ | 可选，`llm-judge` 型业务流（YAML）→ 渲染成 AGENTS.md 的 Standing Orders |
 | `opt.agents[].workflows` | ⬜ | 可选，xsystem 已转好的 Lobster 工作流（每项含 `id` + `lobster` 文本）→ 原样落 `.lobster` |
 | `opt.agents[].redlines` | ⬜ | 可选，红线条目 → AGENTS.md 红线段 |
@@ -157,14 +156,13 @@ OPT 装配 Agent。拿到一份完整的 OPT 配置（YAML 格式），渲染出
 
 技能按 `source` 分两类：
 
-- **`source: inline`（现场定义，缺省）** — 装配 agent 按字段渲染：
+- **`source: inline`（现场生成，缺省）** — 装配 agent 按字段渲染：
   - 知识库 SKILL：命名空间 `kb-<id>`，工具名 `kb-cli`，包含 `kb-cli search`/`kb-cli get` 命令示例、参考文件清单、权限边界
   - 本体 SKILL：命名空间 `ontology-<id>`，工具名 `onto-cli`，包含 `onto-cli concept get`/`relation list`/`query` 命令示例、权限边界
   - 程序型 SKILL（如 nl2sql）：走 CREATE_PROGRAM_SKILL
   - 选几个知识库就生成几个 kb SKILL，几个本体就生成几个 ontology SKILL（一对一）
   - 用户上传的参考文件放入对应 SKILL 的 `reference/` 子目录，SKILL.md 里列出相对路径
-- **`source: hub`（从 SKILL HUB 选的已有技能）** — xsystem 已把成品 SKILL.md 文本注入到 `content`，装配 agent 由 CREATE_HUB_SKILL **原样落盘**到 `skills/<dir>/SKILL.md`，不渲染、不访问 HUB
-- **`source: prebuilt`（程序预生成、已上传）** — SKILL.md 已由程序传到 `assemble/<opt_id>/workspace/<agent_id>/skills/<dir>/`，装配 agent **不生成、不覆盖、不读取其正文**；仅把该项的 `usage[]`（使用场景）交给 CREATE_AGENTS_MD，用于 main 的路由描述或本 agent 能力表的「何时使用」。`usage` 缺失视为校验失败（assemble 无从描述场景）
+- **`source: prebuilt`（提前预制，已上传）** — SKILL.md 已由程序传到 `assemble/<opt_id>/workspace/<agent_id>/skills/<dir>/`，装配 agent **不生成、不覆盖、不读取其正文**；仅把该项的 `usage[]`（使用场景）交给 CREATE_AGENTS_MD，用于 main 的路由描述或本 agent 能力表的「何时使用」。`usage` 缺失视为校验失败（assemble 无从描述场景）
 - 每个 SKILL 文件放入对应 agent workspace 的 `skills/<skill-name>/` 目录
 
 ### Lobster 工作流生成规则
