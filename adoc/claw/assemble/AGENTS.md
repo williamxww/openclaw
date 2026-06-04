@@ -116,7 +116,6 @@ OPT 装配 Agent。拿到一份完整的 OPT 配置（YAML 格式），渲染出
 | `opt.owner.role` | ✅ | 默认服务对象职位，写入 USER.md |
 | `opt.agents` | ✅ | 至少包含一个 main agent |
 | `opt.agents[].id` | ✅ | 每个 agent 的唯一 id |
-| `opt.agents[].llm.modelId` | ✅ | 每个 agent 必须指定 LLM 模型 |
 | `opt.agents[].role` | ✅ | agent 角色描述，写入 IDENTITY.md / AGENTS.md |
 | `opt.agents[].soul` | ✅ | agent 性格描述，写入 SOUL.md |
 | `opt.agents[].owner` | ⬜ | 可选，覆盖默认 `opt.owner`（该 agent 的 USER.md 用这份） |

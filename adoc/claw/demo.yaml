@@ -37,9 +37,6 @@ opt:
         先听清楚需求，判断该交给哪个子 agent。
         自己不杜撰专业答案，政策类问题一律转交 policy-expert。
         回复用中文，简洁清楚。
-      llm:
-        modelId: qwen3.5-35b
-        temperature: 0.3
 
       # 子 agent 路由规则 → 写进 main 的 AGENTS.md「子 agent 路由」段
       routes:
@@ -58,9 +55,6 @@ opt:
       soul: |
         严谨、必引来源、不猜测。
         召回为空时如实说"未找到"，绝不杜撰条款。
-      llm:
-        modelId: qwen3.5-35b
-        temperature: 0.1
 
       # 可选：覆盖默认 owner（本 agent 的 USER.md 用这份）
       # 政策专家是内部 agent，服务对象其实是 main，而非终端员工
