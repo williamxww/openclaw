@@ -46,8 +46,6 @@ OPT 装配 Agent。拿到一份完整的 OPT 配置（YAML 格式），渲染出
 
 3. **逐 agent 渲染文件** — 路径由 `opt.id` 唯一决定，本地暂存根 `~/.openclaw/output/<opt_id>/`。每个文件调用对应的 `CREATE_*` SKILL 渲染（每个 SKILL 自带 `reference/` 模板）。
 
-   > 业务流 Lobster 已由 xsystem 转换好并随 YAML 携带，本 agent 不做 DAG 校验或转换，直接落盘。
-
    **写入路径约定（只有两种）：**
    - **每个 agent**（main 也是一种 agent）的文件落在 `workspace/<agent_id>/` 下：`~/.openclaw/output/<opt_id>/workspace/<agent_id>/<file>`（main = `workspace/main/`）
    - **全局 `openclaw.json`** 落在 `<opt_id>/` 根下（已在步骤 2 产出）
