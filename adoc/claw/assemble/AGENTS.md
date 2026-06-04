@@ -64,7 +64,7 @@ OPT 装配 Agent。拿到一份完整的 OPT 配置（YAML 格式），渲染出
    | `skills/<id>/SKILL.md` | `CREATE_PROGRAM_SKILL` | `source: inline` 程序型自定义 skill（如 nl2sql） |
    | （不落盘） | — | `source: prebuilt` 技能：SKILL.md 已由程序传到 `skills/<dir>/`，本 agent **不生成**，仅把其 `usage` 喂给 `CREATE_AGENTS_MD` 写进路由/能力表 |
    | `cron/jobs.json` | `CREATE_CRON_JOBS` | 周期任务（如有），归属对应 agent |
-   | `workflows/<id>.lobster` | `CREATE_WORKFLOW_LOBSTER` | xsystem 已转好的 Lobster 内容，原样落盘（如有） |
+   | （不落盘） | — | `workflows/<id>.lobster`：若 `opt.prebuilt.lobster: true`，由程序预生成上传，本 agent **不转换、不落盘、不校验** |
 
    - 逐个 agent（含 main）跑一遍上表，各自落 `workspace/<agent_id>/`
    - 每渲染完一个文件就核对产物存在且占位符已替换，**不在 session 里堆积文件内容**：核对完即丢，只记住"已完成清单"，给后续步骤留足上下文
@@ -121,10 +121,9 @@ OPT 装配 Agent。拿到一份完整的 OPT 配置（YAML 格式），渲染出
 | `opt.agents[].soul` | ✅ | agent 性格描述，写入 SOUL.md |
 | `opt.agents[].owner` | ⬜ | 可选，覆盖默认 `opt.owner`（该 agent 的 USER.md 用这份） |
 | `opt.agents[].routes` | ⬜ | 可选（一般仅 main）：子 agent 路由规则，每项 `when`/`to`/`desc` |
-| `opt.prebuilt` | ⬜ | 可选，程序预生成并已上传到 `assemble/<opt_id>/` 的文件声明（如 `openclawJson: true`）；声明项 assemble 跳过不渲染、不覆盖 |
+| `opt.prebuilt` | ⬜ | 可选，程序预生成并已上传到 `assemble/<opt_id>/` 的文件声明（如 `openclawJson: true`、`lobster: true`）；声明项 assemble 跳过不渲染、不覆盖 |
 | `opt.agents[].skills` | ⬜ | 可选，技能列表；每项 `source: inline`（现场生成，缺省，assemble 渲染 SKILL.md）或 `source: prebuilt`（提前预制，已上传，assemble 不落盘，需带 `usage`） |
 | `opt.agents[].dag` | ⬜ | 可选，`llm-judge` 型业务流（YAML）→ 渲染成 AGENTS.md 的 Standing Orders |
-| `opt.agents[].workflows` | ⬜ | 可选，xsystem 已转好的 Lobster 工作流（每项含 `id` + `lobster` 文本）→ 原样落 `.lobster` |
 | `opt.agents[].redlines` | ⬜ | 可选，红线条目 → AGENTS.md 红线段 |
 | `opt.agents[].heartbeat` | ⬜ | 可选，周期检查项列表 |
 
@@ -140,7 +139,7 @@ OPT 装配 Agent。拿到一份完整的 OPT 配置（YAML 格式），渲染出
 - 子 agent 的 AGENTS.md 只包含：自身角色定位、自身 Standing Orders
 - 如有 `dag`（`llm-judge` 型），Standing Orders 的执行步骤按 DAG 节点顺序生成
 - 如无业务流，Standing Orders 只写触发条件和权限边界，步骤留空待用户补充
-- 全命令/确认型业务流不进 AGENTS.md，由 xsystem 转成 Lobster 后随 `workflows[]` 携带，落 `.lobster` 文件
+- 全命令/确认型业务流不进 AGENTS.md，由程序转成 Lobster 预生成上传（`opt.prebuilt.lobster: true`），assemble 不参与
 
 ### openclaw.json 生成规则
 
@@ -165,9 +164,9 @@ OPT 装配 Agent。拿到一份完整的 OPT 配置（YAML 格式），渲染出
 
 ### Lobster 工作流生成规则
 
-- 业务流 Lobster 已由 **xsystem 转换并校验完成**，随 `opt.agents[].workflows[].lobster` 以成品文本携带
-- 本 agent **不做 DAG → Lobster 转换、不做语法/拓扑校验**，由 `CREATE_WORKFLOW_LOBSTER` 把 `lobster` 内容**原样落盘**成 `workflows/<id>.lobster`
-- 内容不增删、不重排、不"优化"
+- 若用户强制选用 Lobster 方案，业务流 `.lobster` 由 **程序生成、已上传到 `assemble/<opt_id>/workspace/<agent_id>/workflows/`**（与 `openclaw.json` 同机制，由 `opt.prebuilt.lobster: true` 声明）
+- 本 agent **不做 DAG → Lobster 转换、不落盘、不做语法/拓扑校验、不读取其正文**，整条 Lobster 链路与 assemble 无关
+- 收尾自检不检 `.lobster` 文件
 
 ---
 
@@ -177,6 +176,6 @@ OPT 装配 Agent。拿到一份完整的 OPT 配置（YAML 格式），渲染出
 - 不得在校验失败时生成部分文件（要么整套渲染并写入 MinIO，要么全部不写）
 - 不得修改本次 `<opt_id>/` 前缀以外的任何对象（只写本次装配的前缀下，含根下 `openclaw.json` 与各 agent 的 `workspace/<agent_id>/`）
 - **路径只用 `<opt_id>/` 约定**：路径由 `opt.id` 唯一决定，前缀下全局 openclaw.json 在根下、每个 agent（含 main）在 `workspace/<agent_id>/`；mc alias `kdx-minio`、bucket `assemble`、上传只用 `mc`，不用 aws s3 或其他通道；本地 `~/.openclaw/output/<opt_id>/` 与远端结构镜像
-- 渲染 `llm-judge` 型 DAG 为 Standing Orders 时，不得自行决定节点执行顺序，必须严格按 DAG 拓扑排序；Lobster 工作流原样落盘，不改动 xsystem 已转好的内容
+- 渲染 `llm-judge` 型 DAG 为 Standing Orders 时，不得自行决定节点执行顺序，必须严格按 DAG 拓扑排序
 - 不得创建或挂载 pod，不得越界做 OPT 运行期的任何业务工作
-- 不得覆盖或重新生成 `opt.prebuilt` 声明的文件、以及 `source: prebuilt` 的 SKILL.md——这些已由程序上传，本 agent 只引用其元数据（如 `usage`），绝不写盘
+- 不得覆盖或重新生成 `opt.prebuilt` 声明的文件（`openclaw.json`、`workflows/*.lobster` 等）、以及 `source: prebuilt` 的 SKILL.md——这些已由程序上传，本 agent 只引用其元数据（如 `usage`），绝不写盘、不转换、不校验

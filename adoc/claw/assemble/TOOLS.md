@@ -12,7 +12,7 @@ agent 拿到一份完整的 OPT 配置（YAML 格式）即据此创建蓝图—�
 
 - `mc` — MinIO 客户端，写蓝图真源（唯一写方向）
 
-> 装配 agent 只依赖 `mc`。DAG → Lobster 的转换已在 xsystem 侧完成，配置 YAML 直接携带成品 Lobster 内容，本 agent **不做转换、不调 `dag2lobster`**。
+> 装配 agent 只依赖 `mc`。Lobster 业务流由程序预生成并已上传到 MinIO，本 agent **不做转换、不调 `dag2lobster`、不落盘**。
 > 不使用任何 OPT 配置反查接口（配置随请求完整到达）；不使用 `write-workspace` / `mount` / `pod-status`（写入终点是 MinIO，挂载由 xsystem 调其他团队的服务负责，与本 agent 无关）。
 
 ## 写入 MinIO（蓝图真源）
@@ -43,8 +43,8 @@ mc cp --recursive "$LOCAL/" "$REMOTE/"
 
 ## 业务流（Lobster）
 
-> DAG → Lobster 的转换与校验在 **xsystem 侧**完成，OPT 配置 YAML 直接携带成品 Lobster 文本（`opt.agents[].workflows[].lobster`）。
-> 装配 agent 不做转换、不校验 DAG，只由 `CREATE_WORKFLOW_LOBSTER` 把 Lobster 内容原样落成 `workflows/<id>.lobster` 文件。
+> 若用户强制选用 Lobster 方案，业务流 `.lobster` 文件由 **程序生成、预上传到 MinIO**（与 `openclaw.json` 同机制，由 `opt.prebuilt.lobster: true` 声明）。
+> 装配 agent **不做 DAG → Lobster 转换、不校验、不落盘、不读取**，整条 Lobster 链路与本 agent 无关。
 
 ## 文件模板
 
@@ -63,7 +63,8 @@ mc cp --recursive "$LOCAL/" "$REMOTE/"
 | `skills/ontology-<id>/SKILL.md` | `CREATE_ONTOLOGY_SKILL` | `reference/ontology-SKILL.template.md` |
 | `skills/<id>/SKILL.md` | `CREATE_PROGRAM_SKILL` | `reference/program-SKILL.template.md` |
 | `cron/jobs.json` | `CREATE_CRON_JOBS` | `reference/jobs.template.json` |
-| `workflows/<id>.lobster` | `CREATE_WORKFLOW_LOBSTER` | `reference/workflow.template.lobster` |
+
+> `openclaw.json` 与 `workflows/*.lobster` 若由 `opt.prebuilt` 声明为程序预生成，则不在上表、由程序上传，assemble 不渲染。
 
 ## 输出目录
 

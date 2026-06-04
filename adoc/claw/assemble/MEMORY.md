@@ -33,7 +33,6 @@
 | CREATE_ONTOLOGY_SKILL | skills/ontology-*/SKILL.md | 1.0 | — |
 | CREATE_PROGRAM_SKILL | skills/*/SKILL.md（source:inline） | 1.0 | — |
 | CREATE_CRON_JOBS | cron/jobs.json | 1.0 | — |
-| CREATE_WORKFLOW_LOBSTER | workflows/*.lobster | 1.0 | — |
 
 ---
 

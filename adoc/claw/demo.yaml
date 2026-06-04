@@ -14,6 +14,7 @@ opt:
   # assemble 看到这里的声明就「跳过、不覆盖」，收尾自检也按声明跳过对应检查。
   prebuilt:
     openclawJson: true            # 根下 openclaw.json 由程序生成上传 → assemble 不渲染、不注册 skills.entries
+    lobster: true                 # 各 agent 的 workflows/*.lobster 由程序生成上传 → assemble 不转换、不落盘、不校验
 
   # ---------- 默认服务对象，写入每个 agent 的 USER.md ----------
   # 所有 agent 共用这份 owner；个别 agent 可在自己下面写 owner: 覆盖

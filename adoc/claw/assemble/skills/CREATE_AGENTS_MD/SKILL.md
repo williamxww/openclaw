@@ -20,7 +20,7 @@ tools:
   - 否则并入本 agent 「能力与工具映射」表的约束/何时使用列
   - `source: prebuilt` 项 assemble 不落盘 SKILL.md，但**必须**在此体现其 `usage`，否则该已传技能在蓝图里没有任何场景说明
 - `opt.agents[].writeOrder[]` — 写操作依赖顺序，渲染成「创建类依赖顺序，不得跳序」
-- `opt.agents[].dag` — `llm-judge` 型业务流 → 渲染成 Standing Orders 步骤（全命令/确认型不在此，由 xsystem 转成 Lobster 随 `workflows[]` 携带，交 CREATE_WORKFLOW_LOBSTER 落盘）
+- `opt.agents[].dag` — `llm-judge` 型业务流 → 渲染成 Standing Orders 步骤（全命令/确认型不在此，由程序转成 Lobster 预生成上传，assemble 不参与）
 - `opt.agents[].redlines[]` — 红线条目
 
 ## 渲染步骤

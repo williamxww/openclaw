@@ -16,13 +16,22 @@
         "id": "main",
         "workspace": "/root/.openclaw/workspace/main",
         "agentDir": "/root/.openclaw/agents/main/agent",
-        "default": true
+        "default": true,
+        "tools": {
+          "alsoAllow": ["lobster"]
+        }
       },
       {
         "id": "dataagent",
         "workspace": "/root/.openclaw/workspace/dataagent",
         "agentDir": "/root/.openclaw/agents/dataagent/agent",
         "skills": ["nl2sql"]
+      },
+	  {
+        "id": "assemble",
+        "workspace": "/root/.openclaw/workspace/assemble",
+        "agentDir": "/root/.openclaw/agents/assemble/agent",
+        "skills": ["CREATE_IDENTITY_MD","CREATE_SOUL_MD","CREATE_USER_MD","CREATE_AGENTS_MD","CREATE_TOOLS_MD","CREATE_HEARTBEAT_MD","CREATE_OPENCLAW_JSON","CREATE_KB_SKILL","CREATE_ONTOLOGY_SKILL","CREATE_PROGRAM_SKILL","CREATE_CRON_JOBS"]
       }
     ]
   },
@@ -101,6 +110,9 @@
   "plugins": {
     "entries": {
       "openclaw-qqbot": {
+        "enabled": true
+      },
+      "lobster": {
         "enabled": true
       }
     }
