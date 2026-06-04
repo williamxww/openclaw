@@ -9,6 +9,12 @@ opt:
   id: hr-demo                     # 唯一标识，决定蓝图路径 <opt_id>/
   name: HR 助手                    # 显示名，写入 IDENTITY.md
 
+  # ---------- 程序预生成、已上传到 MinIO 的文件 ----------
+  # 这些文件不由 assemble agent 渲染：程序已生成并传到 assemble/<opt_id>/ 的预定位置。
+  # assemble 看到这里的声明就「跳过、不覆盖」，收尾自检也按声明跳过对应检查。
+  prebuilt:
+    openclawJson: true            # 根下 openclaw.json 由程序生成上传 → assemble 不渲染、不注册 skills.entries
+
   # ---------- 默认服务对象，写入每个 agent 的 USER.md ----------
   # 所有 agent 共用这份 owner；个别 agent 可在自己下面写 owner: 覆盖
   owner:
@@ -64,9 +70,10 @@ opt:
           - 我是被 main 路由调用的内部专家，只回政策事实问题
           - 召回为空如实说"未找到"，不杜撰
 
-      # skills[] 支持两种来源，用 source 区分：
-      #   source: inline —— 现场定义型，字段全写在 YAML 里，装配时现渲染 SKILL.md（默认）
-      #   source: hub    —— 从 SKILL HUB 选的已有技能，xsystem 已把成品 SKILL.md 文本注入到 content
+      # skills[] 支持三种来源，用 source 区分：
+      #   source: inline   —— 现场定义型，字段全写在 YAML 里，装配时现渲染 SKILL.md（默认）
+      #   source: hub      —— 从 SKILL HUB 选的已有技能，xsystem 已把成品 SKILL.md 文本注入到 content
+      #   source: prebuilt —— 程序已把 SKILL.md 传到 skills/<dir>/，assemble 不落盘，只用 usage 描述场景
       skills:
 
         # —— 现场定义型知识库（装配 agent 按字段渲染 kb-cli SKILL.md）——
@@ -104,3 +111,17 @@ opt:
             doc-cli summarize --file <path> --max-points 10 --json
             ```
           referenceFiles: []       # HUB 技能如自带参考文件，xsystem 一并给出落点清单
+
+        # —— 程序预生成、已上传的已有技能（SKILL.md 已在 MinIO，assemble 不落盘）——
+        # 与 hub 的区别：不带 content（文件已在 MinIO），但必须带 usage——
+        # assemble 看不到 SKILL.md 内容，只能靠 usage 知道「什么场景该用这个 SKILL」，
+        # 据此写 main 的路由描述 / 本 agent AGENTS.md 能力表的「何时使用」。
+        - source: prebuilt
+          id: ocr-extract          # 技能标识
+          dir: ocr-extract         # 落点目录名，必须与已上传的 skills/<dir>/ 一致
+          displayName: 票据 OCR
+          domain: 从图片/PDF 票据提取结构化字段
+          permission: ocr:read     # 可选，用于 AGENTS.md 能力表
+          usage:                   # ★ 必填：供 assemble 描述使用场景（assemble 不会读 SKILL.md 正文）
+            - 员工上传报销票据图片，需要识别金额、日期、抬头时
+            - 需要把扫描件里的表格转成结构化数据时

@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "jobs": [
+    {
+      "id": "83d0f740-bab3-41f2-8a03-1c3b64d340d6",
+      "agentId": "main",
+      "sessionKey": "agent:main:main",
+      "name": "喝水提醒",
+      "enabled": true,
+      "deleteAfterRun": true,
+      "createdAtMs": 1780550953779,
+      "schedule": {
+        "kind": "at",
+        "at": "2026-06-04T05:30:00.000Z"
+      },
+      "sessionTarget": "main",
+      "wakeMode": "now",
+      "payload": {
+        "kind": "systemEvent",
+        "text": "【喝水提醒】已经下午 1 点半了，记得补充水分。"
+      },
+      "state": {}
+    }
+  ]
+}

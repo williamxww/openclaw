@@ -40,7 +40,8 @@ OPT 装配 Agent。拿到一份完整的 OPT 配置（YAML 格式），渲染出
    - 校验：见"输入校验规则"；缺字段则停止，列出所有缺失项，不渲染任何文件
 
 2. **先渲染全局 `openclaw.json`** — 调 `CREATE_OPENCLAW_JSON`，写到 `~/.openclaw/output/<opt_id>/openclaw.json`（根下）
-   - 它只依赖配置、不依赖任何已渲染文件，**必须第一个产出**，避免排在最后被上下文压缩切掉
+   - **若 `opt.prebuilt.openclawJson: true`：跳过本步**——该文件由程序预生成并已上传到 `assemble/<opt_id>/openclaw.json`，本 agent 不渲染、不覆盖、不在 `skills.entries` 注册任何 skill；收尾自检也不检它
+   - 否则它只依赖配置、不依赖任何已渲染文件，**必须第一个产出**，避免排在最后被上下文压缩切掉
    - 含所有 agent 的 `agents.list`，每个 `workspace` 指向 `workspace/<agent_id>/`
 
 3. **逐 agent 渲染文件** — 路径由 `opt.id` 唯一决定，本地暂存根 `~/.openclaw/output/<opt_id>/`。每个文件调用对应的 `CREATE_*` SKILL 渲染（每个 SKILL 自带 `reference/` 模板）。
@@ -64,6 +65,7 @@ OPT 装配 Agent。拿到一份完整的 OPT 配置（YAML 格式），渲染出
    | `skills/ontology-<id>/SKILL.md` | `CREATE_ONTOLOGY_SKILL` | `source: inline` 本体，每个一份 |
    | `skills/<id>/SKILL.md` | `CREATE_PROGRAM_SKILL` | `source: inline` 程序型自定义 skill（如 nl2sql） |
    | `skills/<dir>/SKILL.md` | `CREATE_HUB_SKILL` | `source: hub` 技能，xsystem 已注入内容，原样落盘 |
+   | （不落盘） | — | `source: prebuilt` 技能：SKILL.md 已由程序传到 `skills/<dir>/`，本 agent **不生成**，仅把其 `usage` 喂给 `CREATE_AGENTS_MD` 写进路由/能力表 |
    | `cron/jobs.json` | `CREATE_CRON_JOBS` | 周期任务（如有），归属对应 agent |
    | `workflows/<id>.lobster` | `CREATE_WORKFLOW_LOBSTER` | xsystem 已转好的 Lobster 内容，原样落盘（如有） |
 
@@ -122,7 +124,8 @@ OPT 装配 Agent。拿到一份完整的 OPT 配置（YAML 格式），渲染出
 | `opt.agents[].soul` | ✅ | agent 性格描述，写入 SOUL.md |
 | `opt.agents[].owner` | ⬜ | 可选，覆盖默认 `opt.owner`（该 agent 的 USER.md 用这份） |
 | `opt.agents[].routes` | ⬜ | 可选（一般仅 main）：子 agent 路由规则，每项 `when`/`to`/`desc` |
-| `opt.agents[].skills` | ⬜ | 可选，技能列表；每项 `source: inline`（现场定义，缺省）或 `source: hub`（xsystem 注入 `content`） |
+| `opt.prebuilt` | ⬜ | 可选，程序预生成并已上传到 `assemble/<opt_id>/` 的文件声明（如 `openclawJson: true`）；声明项 assemble 跳过不渲染、不覆盖 |
+| `opt.agents[].skills` | ⬜ | 可选，技能列表；每项 `source: inline`（现场定义，缺省）/ `source: hub`（xsystem 注入 `content`）/ `source: prebuilt`（已上传，assemble 不落盘，需带 `usage`） |
 | `opt.agents[].dag` | ⬜ | 可选，`llm-judge` 型业务流（YAML）→ 渲染成 AGENTS.md 的 Standing Orders |
 | `opt.agents[].workflows` | ⬜ | 可选，xsystem 已转好的 Lobster 工作流（每项含 `id` + `lobster` 文本）→ 原样落 `.lobster` |
 | `opt.agents[].redlines` | ⬜ | 可选，红线条目 → AGENTS.md 红线段 |
@@ -161,6 +164,7 @@ OPT 装配 Agent。拿到一份完整的 OPT 配置（YAML 格式），渲染出
   - 选几个知识库就生成几个 kb SKILL，几个本体就生成几个 ontology SKILL（一对一）
   - 用户上传的参考文件放入对应 SKILL 的 `reference/` 子目录，SKILL.md 里列出相对路径
 - **`source: hub`（从 SKILL HUB 选的已有技能）** — xsystem 已把成品 SKILL.md 文本注入到 `content`，装配 agent 由 CREATE_HUB_SKILL **原样落盘**到 `skills/<dir>/SKILL.md`，不渲染、不访问 HUB
+- **`source: prebuilt`（程序预生成、已上传）** — SKILL.md 已由程序传到 `assemble/<opt_id>/workspace/<agent_id>/skills/<dir>/`，装配 agent **不生成、不覆盖、不读取其正文**；仅把该项的 `usage[]`（使用场景）交给 CREATE_AGENTS_MD，用于 main 的路由描述或本 agent 能力表的「何时使用」。`usage` 缺失视为校验失败（assemble 无从描述场景）
 - 每个 SKILL 文件放入对应 agent workspace 的 `skills/<skill-name>/` 目录
 
 ### Lobster 工作流生成规则
@@ -179,3 +183,4 @@ OPT 装配 Agent。拿到一份完整的 OPT 配置（YAML 格式），渲染出
 - **路径只用 `<opt_id>/` 约定**：路径由 `opt.id` 唯一决定，前缀下全局 openclaw.json 在根下、每个 agent（含 main）在 `workspace/<agent_id>/`；mc alias `kdx-minio`、bucket `assemble`、上传只用 `mc`，不用 aws s3 或其他通道；本地 `~/.openclaw/output/<opt_id>/` 与远端结构镜像
 - 渲染 `llm-judge` 型 DAG 为 Standing Orders 时，不得自行决定节点执行顺序，必须严格按 DAG 拓扑排序；Lobster 工作流原样落盘，不改动 xsystem 已转好的内容
 - 不得创建或挂载 pod，不得越界做 OPT 运行期的任何业务工作
+- 不得覆盖或重新生成 `opt.prebuilt` 声明的文件、以及 `source: prebuilt` 的 SKILL.md——这些已由程序上传，本 agent 只引用其元数据（如 `usage`），绝不写盘

@@ -32,4 +32,5 @@ tools:
 - 内容原样落盘，不增删、不重排、不"优化"
 - 不访问 SKILL HUB，不做任何渲染——内容已由 xsystem 备好
 - `source: inline` 的项不在此处理（kb → CREATE_KB_SKILL，ontology → CREATE_ONTOLOGY_SKILL，program → CREATE_PROGRAM_SKILL）
+- `source: prebuilt` 的项也不在此处理：其 SKILL.md 已由程序上传到 `skills/<dir>/`，**不落盘、不读取**，仅由 CREATE_AGENTS_MD 取其 `usage` 写场景
 - 仅渲染本文件
