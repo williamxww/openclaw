@@ -5,7 +5,7 @@
 # runtime 仅保留运行所需文件，以非 root 用户启动 gateway。
 
 # ---------- builder ----------
-FROM node:24-bookworm-slim AS builder
+FROM node:26-bookworm-slim AS builder
 
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
@@ -28,7 +28,7 @@ RUN pnpm install --frozen-lockfile
 RUN pnpm build:docker
 
 # ---------- runtime ----------
-FROM node:24-bookworm-slim AS runtime
+FROM node:26-bookworm-slim AS runtime
 
 # 运行期：插件安装/媒体处理等路径需要 git 与 python3。
 RUN apt-get update \
